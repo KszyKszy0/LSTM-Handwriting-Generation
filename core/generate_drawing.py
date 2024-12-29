@@ -64,11 +64,8 @@ def generate_sequence(model, start_point, seq_length=100, num_mixtures=20, outpu
             # Aktualizacja bieżącego punktu
             dx, dy = gaussian_sample.tolist()
 
-            dx_norm = (dx - meanf[0]) / stdf[0]
-            dy_norm = (dy - meanf[1]) / stdf[1]
-
             # Ustawienie jako kolejny input outputu sieci (nwm czy poprawnie znormalizowany)
-            current_point = torch.tensor([[dx_norm, dy_norm, eos_sample]], dtype=torch.float32).unsqueeze(0)
+            current_point = torch.tensor([[dx, dy, eos_sample]], dtype=torch.float32).unsqueeze(0)
 
             # Dodanie punktu do wygenerowanej sekwencji
             generated_points.append([dx, dy, eos_sample])

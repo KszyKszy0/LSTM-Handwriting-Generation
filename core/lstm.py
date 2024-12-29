@@ -22,15 +22,19 @@ def parse_svg(file_path):
         points_str = polyline.attrib.get('points', '').strip()
         if points_str:
             # Zamień punkty na listę par współrzędnych
+            x = 0
+            y = 0
             points = []
             for pair in points_str.split():
+                previous_x = x
+                previous_y = y
                 x, y = map(float, pair.split(','))
-                points.append([x, y, 1])  # Długopis pisze
+                points.append([x - previous_x, y - previous_y, 0])  # Długopis pisze
 
             # Dodaj stan "w powietrzu" po zakończeniu polyline
             if points:
                 last_point = points[-1][:2]  # Pobierz tylko x, y
-                points.append([last_point[0], last_point[1], 0])  # Długopis w powietrzu
+                points.append([last_point[0], last_point[1], 1])  # Długopis w powietrzu
 
             polylines.extend(points)
     return polylines
@@ -53,7 +57,8 @@ class HandwritingDataset(Dataset):
             self.data.append(polylines)  # Dodanie całej sekwencji z pliku
 
         # Normalizacja danych
-        self.normalize_data()
+        # self.normalize_data()
+        print(self.data)
 
 
     def normalize_data(self):
@@ -90,7 +95,7 @@ class HandwritingDataset(Dataset):
 
 
 
-svg_files = ['output/00001.svg','output/00002.svg','output/00003.svg']  # Podmień na rzeczywiste ścieżki
+svg_files = ['output/00001.svg','output/00002.svg']  # Podmień na rzeczywiste ścieżki
 dataset = HandwritingDataset(svg_files)
 dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
 

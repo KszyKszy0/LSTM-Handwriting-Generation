@@ -17,13 +17,13 @@ def parse_svg(file_path):
     root = tree.getroot()
     polylines = []
 
+    x = 0
+    y = 0
     # Znajdź wszystkie polyline w SVG
     for polyline in root.findall('.//{http://www.w3.org/2000/svg}polyline'):
         points_str = polyline.attrib.get('points', '').strip()
         if points_str:
             # Zamień punkty na listę par współrzędnych
-            x = 0
-            y = 0
             points = []
             for pair in points_str.split():
                 previous_x = x
@@ -57,8 +57,8 @@ class HandwritingDataset(Dataset):
             self.data.append(polylines)  # Dodanie całej sekwencji z pliku
 
         # Normalizacja danych
-        # self.normalize_data()
-        print(self.data)
+        self.normalize_data()
+        # print(self.data)
 
 
     def normalize_data(self):
@@ -68,6 +68,9 @@ class HandwritingDataset(Dataset):
         all_points = np.concatenate([np.array(seq)[:, :2] for seq in self.data], axis=0)  # Ekstrakcja x, y
         self.mean = np.mean(all_points, axis=0)
         self.std = np.std(all_points, axis=0)
+
+        with open('norm.txt', 'w') as file:
+            np.savetxt('norm.txt', np.column_stack((self.mean, self.std)))
 
         # Normalizacja x, y; flaga (0-1) pozostaje bez zmian
         for i in range(len(self.data)):
@@ -95,8 +98,10 @@ class HandwritingDataset(Dataset):
 
 
 
-svg_files = ['output/00001.svg','output/00002.svg']  # Podmień na rzeczywiste ścieżki
-dataset = HandwritingDataset(svg_files)
-dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
+# svg_files = ['output/00001.svg','output/00002.svg']  # Podmień na rzeczywiste ścieżki
+# dataset = HandwritingDataset(svg_files)
+# dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
 
 
+# for input_seq, target_seq in dataloader:
+#     print(input_seq, target_seq)

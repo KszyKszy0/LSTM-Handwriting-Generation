@@ -3,6 +3,8 @@ import random
 import tkinter as tk
 from tkinter import messagebox
 import svgwrite
+import re
+
 
 # usunąć alert
 # susnąć loga
@@ -14,20 +16,27 @@ WORDS_FILE = "words.txt"  # Plik ze słowami do losowania
 CANVAS_WIDTH = 500
 CANVAS_HEIGHT = 150
 
-# Funkcje pomocnicze
+# next file number
 def get_next_file_number():
     if not os.path.exists(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
-    if not os.path.exists(LOG_FILE):
         return 1
 
-    with open(LOG_FILE, "r") as log:
-        lines = log.readlines()
-        if not lines:
-            return 1
-        last_file = lines[-1].strip()
-        last_number = int(os.path.splitext(last_file)[0])
-        return last_number + 1
+    # Pobieranie nazw plików w folderze
+    files = os.listdir(OUTPUT_DIR)
+
+    # Wyciąganie numerów z nazw plików (przy założeniu, że nazwy plików zaczynają się od liczby)
+    numbers = []
+    for file in files:
+        match = re.match(r"^(\d+)", file)  # Dopasowanie liczby na początku nazwy pliku
+        if match:
+            numbers.append(int(match.group(1)))
+
+    # Jeśli nie ma plików z numerami, zwróć 1
+    if not numbers:
+        return 1
+
+    return max(numbers) + 1
 
 def load_words():
     if not os.path.exists(WORDS_FILE):
@@ -111,15 +120,29 @@ class HandwritingApp:
             messagebox.showwarning("Brak danych", "Pole rysowania jest puste!")
             return
 
-        filename = f"{self.file_number:05d}.svg"
+            # Podstawowa nazwa pliku
+        base_filename = self.current_word
+        filename = f"{base_filename}.svg"
         filepath = os.path.join(OUTPUT_DIR, filename)
+
+        # Sprawdzanie czy plik istnieje i dodawanie numeracji
+        counter = 1
+        while os.path.exists(filepath):
+            filename = f"{base_filename} {counter}.svg"
+            filepath = os.path.join(OUTPUT_DIR, filename)
+            counter += 1
+
+        # Zapis pliku
         save_svg(self, filepath)
 
+        # Logowanie
         with open(LOG_FILE, "a") as log:
             log.write(self.current_word + "\n")
 
         print(f"Zapisano plik: {filename}, słowo: {self.current_word}")
         messagebox.showinfo("Zapisano", f"Plik zapisany jako {filename}")
+
+        # Aktualizacja stanu aplikacji
         self.file_number += 1
         self.reset_canvas()
         self.update_word()

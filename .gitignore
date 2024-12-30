@@ -1,4 +1,3 @@
 models/*
 !models
-output/*
-!output
+core/__pycache__/*

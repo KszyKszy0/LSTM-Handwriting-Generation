@@ -90,6 +90,10 @@ class HandwritingApp:
 
         self.save_button = tk.Button(self.button_frame, text="Zapisz", command=self.save_canvas)
         self.save_button.pack(side=tk.LEFT, padx=10)
+        
+        # Obsługa skrótów klawiszowych
+        self.root.bind("<r>", lambda event: self.reset_canvas())
+        self.root.bind("<Return>", lambda event: self.next_word())
 
     def update_word(self):
         self.current_word = random.choice(self.words)
@@ -140,10 +144,14 @@ class HandwritingApp:
             log.write(self.current_word + "\n")
 
         print(f"Zapisano plik: {filename}, słowo: {self.current_word}")
-        messagebox.showinfo("Zapisano", f"Plik zapisany jako {filename}")
+        # messagebox.showinfo("Zapisano", f"Plik zapisany jako {filename}")
 
         # Aktualizacja stanu aplikacji
         self.file_number += 1
+        self.reset_canvas()
+        self.update_word()
+        
+    def next_word(self):
         self.reset_canvas()
         self.update_word()
 

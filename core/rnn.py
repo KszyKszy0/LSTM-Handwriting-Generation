@@ -102,6 +102,8 @@ def mdn_loss(end_of_stroke, mixture_weights, means, std_devs, correlations, targ
     std_x, std_y = std_devs[..., 0], std_devs[..., 1]
     rho = correlations
 
+    rho = torch.clamp(rho, -1 + 1e-5, 1 - 1e-5)
+
     # Obliczenie normalizowanego składnika Gaussowskiego
     z_x = ((x - mean_x) / std_x)
     z_y = ((y - mean_y) / std_y)

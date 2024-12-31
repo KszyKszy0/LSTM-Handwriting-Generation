@@ -11,6 +11,8 @@ import params
 # Ścieżka do folderu
 folder_path = "output"
 
+files_content = "output/files.txt"
+
 # Lista nazw plików z rozszerzeniem .svg
 svg_files = ["output/" + file for file in os.listdir(folder_path) if file.endswith('.svg')]
 
@@ -27,14 +29,14 @@ model = rnn.MixtureDensityNetwork(input_size=3, hidden_size=hidden_size, num_lay
 optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
 
 # svg_files = ['output/00001.svg','output/00002.svg']  # Podmień na rzeczywiste ścieżki
-dataset = data.HandwritingDataset(svg_files)
+dataset = data.HandwritingDataset(svg_files, files_content)
 dataloader = data.DataLoader(dataset, batch_size=1)
 
 for epoch in range(epochs):
     model.train()
     total_loss = 0
 
-    for input_seq, target_seq in dataloader:
+    for input_seq, target_seq, text in dataloader:
         batch_size, seq_len, _ = input_seq.size()
 
         # Inicjalizacja ukrytego stanu LSTM

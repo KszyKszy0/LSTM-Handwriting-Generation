@@ -16,27 +16,33 @@ WORDS_FILE = "words.txt"  # Plik ze słowami do losowania
 CANVAS_WIDTH = 500
 CANVAS_HEIGHT = 150
 
-# next file number
-def get_next_file_number():
-    if not os.path.exists(OUTPUT_DIR):
-        os.makedirs(OUTPUT_DIR)
-        return 1
+def get_next_file_number(directory, prefix, extension):
+    """
+    Znajduje największy numer pliku z określonym prefixem i rozszerzeniem w katalogu,
+    a następnie zwraca następny numer, który można użyć do nazwania nowego pliku.
 
-    # Pobieranie nazw plików w folderze
-    files = os.listdir(OUTPUT_DIR)
+    Args:
+        directory (str): Ścieżka do katalogu, w którym znajdują się pliki.
+        prefix (str): Prefiks plików (np. "plik_").
+        extension (str): Rozszerzenie plików (np. ".txt").
 
-    # Wyciąganie numerów z nazw plików (przy założeniu, że nazwy plików zaczynają się od liczby)
-    numbers = []
-    for file in files:
-        match = re.match(r"^(\d+)", file)  # Dopasowanie liczby na początku nazwy pliku
+    Returns:
+        int: Następny dostępny numer pliku.
+    """
+    # Regularne wyrażenie do wyszukiwania numerów w nazwach plików
+    pattern = re.compile(rf"^{re.escape(prefix)}(\d+){re.escape(extension)}$")
+    max_number = 0
+
+    # Przejrzyj pliki w katalogu
+    for filename in os.listdir(directory):
+        match = pattern.match(filename)
         if match:
-            numbers.append(int(match.group(1)))
+            number = int(match.group(1))
+            if number > max_number:
+                max_number = number
 
-    # Jeśli nie ma plików z numerami, zwróć 1
-    if not numbers:
-        return 1
-
-    return max(numbers) + 1
+    # Zwróć następny numer
+    return max_number + 1
 
 def load_words():
     if not os.path.exists(WORDS_FILE):
@@ -68,7 +74,7 @@ class HandwritingApp:
         self.current_word = ""
 
         # Numeracja plików
-        self.file_number = get_next_file_number()
+        self.file_number = get_next_file_number(OUTPUT_DIR,"",".svg")
         print(f"Następny numer pliku: {self.file_number}")
 
         # Interfejs użytkownika
@@ -90,7 +96,7 @@ class HandwritingApp:
 
         self.save_button = tk.Button(self.button_frame, text="Zapisz", command=self.save_canvas)
         self.save_button.pack(side=tk.LEFT, padx=10)
-        
+
         # Obsługa skrótów klawiszowych
         self.root.bind("<r>", lambda event: self.reset_canvas())
         self.root.bind("<Return>", lambda event: self.next_word())
@@ -124,17 +130,16 @@ class HandwritingApp:
             messagebox.showwarning("Brak danych", "Pole rysowania jest puste!")
             return
 
-            # Podstawowa nazwa pliku
-        base_filename = self.current_word
-        filename = f"{base_filename}.svg"
+
+        filename = f"{self.file_number}.svg"
         filepath = os.path.join(OUTPUT_DIR, filename)
 
         # Sprawdzanie czy plik istnieje i dodawanie numeracji
-        counter = 1
-        while os.path.exists(filepath):
-            filename = f"{base_filename} {counter}.svg"
-            filepath = os.path.join(OUTPUT_DIR, filename)
-            counter += 1
+        # counter = 1
+        # while os.path.exists(filepath):
+        #     filename = f"{self.file_number} {counter}.svg"
+        #     filepath = os.path.join(OUTPUT_DIR, filename)
+        #     counter += 1
 
         # Zapis pliku
         save_svg(self, filepath)
@@ -150,7 +155,7 @@ class HandwritingApp:
         self.file_number += 1
         self.reset_canvas()
         self.update_word()
-        
+
     def next_word(self):
         self.reset_canvas()
         self.update_word()

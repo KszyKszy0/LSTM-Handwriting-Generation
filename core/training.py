@@ -28,6 +28,8 @@ num_mixtures = params.num_mixtures  # Liczba komponentów mieszanki
 model = rnn.MixtureDensityNetwork(input_size=3, hidden_size=hidden_size, num_layers=num_layers, num_mixtures=num_mixtures)
 optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
 
+scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=100, T_mult=1, eta_min=params.min_learning_rate)
+
 # svg_files = ['output/00001.svg','output/00002.svg']  # Podmień na rzeczywiste ścieżki
 dataset = data.HandwritingDataset(svg_files, files_content)
 dataloader = data.DataLoader(dataset, batch_size=16, shuffle=True, collate_fn=data.handwriting_collate_fn)
@@ -59,3 +61,6 @@ for epoch in range(epochs):
 
     print(f"Epoka [{epoch + 1}/{epochs}], Strata: {total_loss:.4f}")
     torch.save(model.state_dict(), f"models/mdn_epoch_{epoch + 1}.pth")
+    scheduler.step()
+    current_lr = scheduler.get_last_lr()[0]
+    print(f"Learning Rate after Epoch {epoch+1}: {current_lr:.6f}")

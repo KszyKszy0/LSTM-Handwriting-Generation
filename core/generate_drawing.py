@@ -116,7 +116,7 @@ def create_svg(points, output_file):
         f.write(reparsed.toprettyxml(indent="  "))
 
 # Przykład użycia
-model_path = "models/mdn_epoch_1000.pth"  # Ścieżka do zapisanego modelu
+model_path = "models/mdn_epoch_190.pth"  # Ścieżka do zapisanego modelu
 model = rnn.MixtureDensityNetwork(input_size=3, hidden_size=params.hidden_size, num_layers=params.num_layers, num_mixtures=params.num_mixtures)
 model.load_state_dict(torch.load(model_path))
 

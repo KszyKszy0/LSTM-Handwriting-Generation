@@ -69,6 +69,7 @@ class HandwritingDataset(Dataset):
         """
         self.data = []  # Lista sekwencji (każda sekwencja to lista punktów)
         self.texts = []  # Lista tekstów odpowiadających danym
+        self.max_timesteps = 2000
 
         # Wczytanie tekstów z pliku
         with open(text_file, 'r', encoding='utf-8') as f:
@@ -126,21 +127,43 @@ class HandwritingDataset(Dataset):
         """
         return len(self.data)
 
+    def pad_sequence(self, sequence, max_length):
+        """
+        Uzupełnia sekwencję zerami do określonej maksymalnej długości.
+        """
+        sequence_length = len(sequence)
+        if sequence_length < max_length:
+            padding = [[0, 0, 0]] * (max_length - sequence_length)  # Dodaj zerowe timestepy
+            sequence.extend(padding)
+        return sequence[:max_length]  # Przytnij do max_length (dla bezpieczeństwa)
+
     def __getitem__(self, idx):
-        """
-        Zwraca sekwencję wejściową i docelową dla danego indeksu pliku.
-        """
         polyline = self.data[idx][0]
-        input_seq = torch.tensor(polyline[:-1], dtype=torch.float32)  # Wszystko oprócz ostatniego punktu
-        target_seq = torch.tensor(polyline[1:], dtype=torch.float32)  # Wszystko oprócz pierwszego punktu
+        padded_polyline = self.pad_sequence(polyline, self.max_timesteps)
+        input_seq = torch.tensor(padded_polyline[:-1], dtype=torch.float32)
+        target_seq = torch.tensor(padded_polyline[1:], dtype=torch.float32)
         return input_seq, target_seq, self.data[idx][1]
 
+
+
+
+def handwriting_collate_fn(batch):
+    """
+    Funkcja collate do DataLoadera.
+    Grupuje dane w batch i wyrównuje ich długości za pomocą paddingu.
+    """
+    input_seqs, target_seqs, texts = zip(*batch)
+    input_seqs = torch.stack(input_seqs)  # Batch input sequences
+    target_seqs = torch.stack(target_seqs)  # Batch target sequences
+    return input_seqs, target_seqs, texts
 
 # folder_path = "output"
 # svg_files = ["output/" + file for file in os.listdir(folder_path) if file.endswith('.svg')]
 # dataset = HandwritingDataset(svg_files, "output/files.txt")
-# dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
+# dataloader = DataLoader(dataset, batch_size=16, shuffle=True, collate_fn=handwriting_collate_fn)
 
 
 # for input_seq, target_seq, text in dataloader:
+#     print(input_seq.shape)
+#     print(target_seq.shape)
 #     print(text)

@@ -30,7 +30,7 @@ optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
 
 # svg_files = ['output/00001.svg','output/00002.svg']  # Podmień na rzeczywiste ścieżki
 dataset = data.HandwritingDataset(svg_files, files_content)
-dataloader = data.DataLoader(dataset, batch_size=1)
+dataloader = data.DataLoader(dataset, batch_size=16, shuffle=True, collate_fn=data.handwriting_collate_fn)
 
 for epoch in range(epochs):
     model.train()

@@ -88,7 +88,7 @@ class HandwritingDataset(Dataset):
             self.data.append((polylines, text))
 
         # Normalizacja danych
-        self.normalize_data()
+        # self.normalize_data()
 
 
     def normalize_data(self):

@@ -16,15 +16,15 @@ def generate_sequence(model, start_point, seq_length=100, num_mixtures=20, outpu
         num_mixtures: Liczba komponentów mieszanki w modelu.
         output_file: Ścieżka do pliku wynikowego SVG.
     """
-    data = np.loadtxt('norm.txt')
-    # Rozdzielenie średnich i odchyleń standardowych
-    meanf = data[:, 0]  # Pierwsza kolumna
-    stdf = data[:, 1]   # Druga kolumna
-    start_point = [
-            (start_point[0] - meanf[0]) / stdf[0],
-            (start_point[1] - meanf[1]) / stdf[1],
-            start_point[2]
-        ]
+    # data = np.loadtxt('norm.txt')
+    # # Rozdzielenie średnich i odchyleń standardowych
+    # meanf = data[:, 0]  # Pierwsza kolumna
+    # stdf = data[:, 1]   # Druga kolumna
+    # start_point = [
+    #         (start_point[0] - meanf[0]) / stdf[0],
+    #         (start_point[1] - meanf[1]) / stdf[1],
+    #         start_point[2]
+    #     ]
 
     model.eval()
     hidden = model.init_hidden(1)  # Inicjalizacja stanu ukrytego
@@ -33,8 +33,8 @@ def generate_sequence(model, start_point, seq_length=100, num_mixtures=20, outpu
     generated_points = []
 
 
-    print(meanf)
-    print(stdf)
+    # print(meanf)
+    # print(stdf)
 
 
     current_point = start_point
@@ -76,8 +76,8 @@ def generate_sequence(model, start_point, seq_length=100, num_mixtures=20, outpu
     x, y = 0, 0
     #denormalizacja żeby poprawnie dodać współrzędne
     for dx, dy, eos in generated_points:
-        x += dx * stdf[0] + meanf[0]
-        y += dy * stdf[1] + meanf[1]
+        x += dx
+        y += dy
         absolute_points.append((x, y, eos))
 
 
@@ -116,7 +116,7 @@ def create_svg(points, output_file):
         f.write(reparsed.toprettyxml(indent="  "))
 
 # Przykład użycia
-model_path = "models/mdn_epoch_190.pth"  # Ścieżka do zapisanego modelu
+model_path = "models/mdn_epoch_10.pth"  # Ścieżka do zapisanego modelu
 model = rnn.MixtureDensityNetwork(input_size=3, hidden_size=params.hidden_size, num_layers=params.num_layers, num_mixtures=params.num_mixtures)
 model.load_state_dict(torch.load(model_path))
 

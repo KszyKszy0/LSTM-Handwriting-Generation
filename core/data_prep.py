@@ -33,27 +33,33 @@ def parse_svg(file_path):
 
     x = 0
     y = 0
+
     # Znajdź wszystkie polyline w SVG
     for polyline in root.findall('.//{http://www.w3.org/2000/svg}polyline'):
         points_str = polyline.attrib.get('points', '').strip()
         if points_str:
             # Zamień punkty na listę par współrzędnych
-            points = [[0,0,1]]
+            points = []
             for pair in points_str.split():
-                previous_x = x
-                previous_y = y
                 x, y = map(float, pair.split(','))
-                points.append([x - previous_x, y - previous_y, 0])  # Długopis pisze
+                points.append([x, y, 0])  # Długopis pisze
 
             # Dodaj stan "w powietrzu" po zakończeniu polyline
             if points:
                 last_point = points[-1][:2]  # Pobierz tylko x, y
                 points.append([last_point[0], last_point[1], 1])  # Długopis w powietrzu
 
-
-
             polylines.extend(points)
-    return polylines
+
+    polylines = np.array(polylines)
+
+    polylines = align(polylines)
+
+    polylines = coords_to_offsets(polylines)
+
+    polylines = normalize(polylines)
+
+    return list(polylines)
 
 
 '''
@@ -158,6 +164,68 @@ def handwriting_collate_fn(batch):
     input_seqs = torch.stack(input_seqs)  # Batch input sequences
     target_seqs = torch.stack(target_seqs)  # Batch target sequences
     return input_seqs, target_seqs, texts
+
+def align(coords):
+    """
+    Corrects for global slant/offset in handwriting strokes using NumPy.
+    """
+    coords = np.copy(coords)  # Tworzy kopię danych wejściowych
+
+    # Oddzielne kolumny X i Y
+    X = coords[:, 0].reshape(-1, 1)
+    Y = coords[:, 1].reshape(-1, 1)
+
+    # Tworzenie macierzy X z kolumną jedynek
+    ones = np.ones((X.shape[0], 1))
+    X = np.hstack([ones, X])
+
+    # Obliczanie współczynników offset i slope
+    XtX = X.T @ X
+    XtY = X.T @ Y
+    coeffs = np.linalg.solve(XtX, XtY).squeeze()
+    offset, slope = coeffs[0], coeffs[1]
+
+    # Obliczanie kąta i macierzy rotacji
+    theta = np.arctan(slope)
+    rotation_matrix = np.array([
+        [np.cos(theta), -np.sin(theta)],
+        [np.sin(theta), np.cos(theta)]
+    ])
+
+    # Rotacja współrzędnych i korekta offsetu
+    coords[:, :2] = coords[:, :2] @ rotation_matrix - offset
+
+    return coords
+
+def normalize(offsets):
+    """
+    Normalizes strokes to median unit norm using NumPy.
+    """
+    offsets = np.copy(offsets)  # Tworzy kopię danych wejściowych
+
+    # Obliczanie mediany normy
+    norms = np.linalg.norm(offsets[:, :2], axis=1)
+    median_norm = np.median(norms)
+
+    # Normalizacja offsetów
+    offsets[:, :2] /= median_norm
+
+    return offsets
+
+'''
+    Zmienia punkty w offsety i wtedy
+    Dodaje 0 0 1 na start
+
+    czyli tak jakby zaczynamy od 0,0 i wtedy od razu offsety pomiędzy
+    czyli nie ma różnicy gdzie się zacznie pisać
+'''
+def coords_to_offsets(coords):
+    """
+    convert from coordinates to offsets
+    """
+    offsets = np.concatenate([coords[1:, :2] - coords[:-1, :2], coords[1:, 2:3]], axis=1)
+    offsets = np.concatenate([np.array([[0, 0, 1]]), offsets], axis=0)
+    return offsets
 
 # folder_path = "output"
 # svg_files = ["output/" + file for file in os.listdir(folder_path) if file.endswith('.svg')]

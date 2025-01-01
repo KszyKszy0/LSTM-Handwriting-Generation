@@ -97,7 +97,7 @@ def create_svg(points, output_file):
 
     polyline_points = []
     for x, y, eos in points:
-        polyline_points.append(f"{x},{y}")
+        polyline_points.append(f"{x+50},{y+50}")
         if eos == 1:  # Nowa linia
             if polyline_points:
                 polyline = ET.SubElement(root, "polyline", points=" ".join(polyline_points),
@@ -116,7 +116,7 @@ def create_svg(points, output_file):
         f.write(reparsed.toprettyxml(indent="  "))
 
 # Przykład użycia
-model_path = "models/mdn_epoch_34458.pth"  # Ścieżka do zapisanego modelu
+model_path = "models/mdn_epoch_1160.pth"  # Ścieżka do zapisanego modelu
 model = rnn.MixtureDensityNetwork(input_size=3, hidden_size=params.hidden_size, num_layers=params.num_layers, num_mixtures=params.num_mixtures)
 model.load_state_dict(torch.load(model_path))
 

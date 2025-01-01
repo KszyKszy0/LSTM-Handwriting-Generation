@@ -26,7 +26,7 @@ num_layers = params.num_layers  # Liczba warstw LSTM
 num_mixtures = params.num_mixtures  # Liczba komponentów mieszanki
 
 model = rnn.MixtureDensityNetwork(input_size=3, hidden_size=hidden_size, num_layers=num_layers, num_mixtures=num_mixtures)
-optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
+optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=100, T_mult=1, eta_min=params.min_learning_rate)
 

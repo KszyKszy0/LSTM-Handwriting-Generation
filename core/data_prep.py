@@ -38,7 +38,7 @@ def parse_svg(file_path):
         points_str = polyline.attrib.get('points', '').strip()
         if points_str:
             # Zamień punkty na listę par współrzędnych
-            points = []
+            points = [[0,0,1]]
             for pair in points_str.split():
                 previous_x = x
                 previous_y = y
@@ -49,6 +49,8 @@ def parse_svg(file_path):
             if points:
                 last_point = points[-1][:2]  # Pobierz tylko x, y
                 points.append([last_point[0], last_point[1], 1])  # Długopis w powietrzu
+
+
 
             polylines.extend(points)
     return polylines

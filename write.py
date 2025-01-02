@@ -82,7 +82,7 @@ class HandwritingApp:
         self.label.pack(pady=10)
         self.update_word()
 
-        self.canvas = tk.Canvas(root, width=CANVAS_WIDTH, height=CANVAS_HEIGHT, bg="white")
+        self.canvas = tk.Canvas(root, width=CANVAS_WIDTH, height=CANVAS_HEIGHT, bg="white", cursor="tcross")
         self.canvas.pack(pady=10)
 
         self.canvas.bind("<B1-Motion>", self.draw)

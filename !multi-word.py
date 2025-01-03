@@ -101,11 +101,11 @@ class HandwritingApp:
 
         self.next_button = tk.Button(self.button_frame, text="Następne słowo", command=self.update_word)
         self.next_button.pack(side=tk.LEFT, padx=10)
-        
+
         # Obsługa skrótów klawiszowych
         self.root.bind("<r>", lambda event: self.reset_canvas())
         self.root.bind("<Return>", lambda: self.update_word)
-        
+
         self.update_word()
 
     def update_word(self):
@@ -141,20 +141,25 @@ class HandwritingApp:
             messagebox.showwarning("Brak danych", "Pole rysowania jest puste!")
             return
 
-        # Podstawowa nazwa pliku
-        base_filename = self.current_word.replace(" ", "_")
-        filename = f"{base_filename}.svg"
+        filename = f"{self.file_number}.svg"
         filepath = os.path.join(OUTPUT_DIR, filename)
+        # Podstawowa nazwa pliku
+        # base_filename = self.current_word.replace(" ", "_")
+        # filename = f"{base_filename}.svg"
+        # filepath = os.path.join(OUTPUT_DIR, filename)
 
         # Sprawdzanie czy plik istnieje i dodawanie numeracji
-        counter = 1
-        while os.path.exists(filepath):
-            filename = f"{base_filename}_{counter}.svg"
-            filepath = os.path.join(OUTPUT_DIR, filename)
-            counter += 1
+        # counter = 1
+        # while os.path.exists(filepath):
+        #     filename = f"{base_filename}_{counter}.svg"
+        #     filepath = os.path.join(OUTPUT_DIR, filename)
+        #     counter += 1
 
         # Zapis pliku
         save_svg(self, filepath)
+
+        with open(LOG_FILE, "a") as log:
+            log.write(self.current_word + "\n")
 
         print(f"Zapisano plik: {filename}, słowo: {self.current_word}")
 

@@ -1,8 +1,8 @@
 import unidecode
 
 # Pliki wejściowe i wyjściowe
-INPUT_FILE = "test.txt"  # Oryginalny plik słownika
-OUTPUT_FILE = "words.txt"   # Plik docelowy z wyrazami bepipz polskich znaków
+INPUT_FILE = "../słowniki/test.txt"  # Oryginalny plik słownika
+OUTPUT_FILE = "../words.txt"   # Plik docelowy z wyrazami bepipz polskich znaków
 
 def remove_polish_characters(word):
     """

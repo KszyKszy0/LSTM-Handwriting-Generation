@@ -105,7 +105,7 @@ class HandwritingApp:
         self.current_word = random.choice(self.words)
         print(f"Wylosowane słowo: {self.current_word}")
         self.label.config(text=f"Przepisz: {self.current_word}")
-
+        
     def draw(self, event):
         x, y = event.x, event.y
         self.current_line.append((x, y))

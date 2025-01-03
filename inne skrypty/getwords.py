@@ -37,7 +37,7 @@ for line in lines:
 sorted_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)
 
 # Zapis słów do pliku
-with open('test.txt', 'w', encoding='utf-8') as file:
+with open('../słowniki/test.txt', 'w', encoding='utf-8') as file:
     for word, _ in sorted_words:
         file.write(f"{word}\n")
 

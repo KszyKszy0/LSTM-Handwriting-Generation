@@ -31,4 +31,4 @@ def count_top_words_in_file(filename, top_n=10):
         print(f"Wystąpił błąd: {e}")
 
 if __name__ == "__main__":
-    count_top_words_in_file("output/files.txt")
+    count_top_words_in_file("../output/files.txt")

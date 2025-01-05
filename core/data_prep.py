@@ -102,8 +102,20 @@ class HandwritingDataset(Dataset):
         for file, text in zip(svg_files, self.texts):
             # Parsowanie pliku SVG na punkty
             polylines = parse_svg(file)
+
+            text_values = []
+            end_prob = []
+
+
+            for i in range(len(polylines)):
+                text_values.append(getTextValue(text, i, len(polylines)))
+
+                end_prob.append(i/len(polylines))
+
+
             # Dodanie całej sekwencji z pliku oraz odpowiadającego tekstu
-            self.data.append((polylines, text))
+            self.data.append((polylines, text, text_values, end_prob))
+
             break
 
         # Normalizacja danych
@@ -156,12 +168,58 @@ class HandwritingDataset(Dataset):
             sequence.extend(padding)
         return sequence[:max_length]  # Przytnij do max_length (dla bezpieczeństwa)
 
+    def pad_alphabet(self, sequence, max_length):
+        sequence_length = len(sequence)
+        element_size = len(sequence[0]) if sequence else 0
+        if sequence_length < max_length:
+            padding = [[0] * element_size] * (max_length - sequence_length)  # Dodaj zerowe timestepy
+            sequence.extend(padding)
+        return sequence[:max_length]  # Przytnij do max_length (dla bezpieczeństwa)
+
+    def pad_end_probability(self, sequence, max_length):
+        sequence_length = len(sequence)
+        if sequence_length < max_length:
+            padding = [0] * (max_length - sequence_length)  # Dodaj zerowe timestepy
+            sequence.extend(padding)
+        return sequence[:max_length]  # Przytnij do max_length (dla bezpieczeństwa)
+
     def __getitem__(self, idx):
         polyline = self.data[idx][0]
         padded_polyline = self.pad_sequence(polyline, self.max_timesteps)
         input_seq = torch.tensor(padded_polyline[:-1], dtype=torch.float32)
         target_seq = torch.tensor(padded_polyline[1:], dtype=torch.float32)
-        return input_seq, target_seq, self.data[idx][1]
+
+        padded_alphabet = self.pad_alphabet(self.data[idx][2], self.max_timesteps)
+        padded_alphabet = torch.tensor(padded_alphabet, dtype=torch.float32)
+
+        input_alphabet = torch.tensor(padded_alphabet[:-1], dtype=torch.float32)
+        target_alphabet = torch.tensor(padded_alphabet[1:], dtype=torch.float32)
+
+        padded_end = self.pad_end_probability(self.data[idx][3], self.max_timesteps)
+        padded_end = torch.tensor(padded_end, dtype=torch.float32)
+
+        padded_end = padded_end.unsqueeze(1)
+
+        input_end = torch.tensor(padded_end[:-1], dtype=torch.float32)
+        target_end = torch.tensor(padded_end[1:], dtype=torch.float32)
+
+        # print(padded_end)
+        # print(input_end)
+        # print(target_end)
+
+        # print(padded_alphabet)
+        # print(input_alphabet)
+        # print(target_alphabet)
+        # padded_alphabet = padded_alphabet.unsqueeze(0)
+        # print(padded_alphabet.shape)
+        # print(input_seq.shape)
+        # print(input_alphabet.shape)
+        # print(input_end.shape)
+        # print(torch.cat((input_seq,input_alphabet,input_end),dim=1).shape)
+        full_input_sq = torch.cat((input_seq,input_alphabet,input_end), dim=1)
+        full_target_sq = torch.cat((target_seq,target_alphabet,target_end), dim=1)
+
+        return full_input_sq, full_target_sq
 
 
 def getTextValue(text, timeStep, length):
@@ -171,7 +229,7 @@ def getTextValue(text, timeStep, length):
 
     for i, c in enumerate(text):
         idx = alphabet[c]
-        print(i,idx)
+        # print(i,idx)
 
         licznik = i/I * length - timeStep
         mianownik = 1/I * length
@@ -181,7 +239,8 @@ def getTextValue(text, timeStep, length):
         value = max(0,value)
         # print(value)
 
-        valueMap[idx] = value
+        if value > valueMap[idx]:
+            valueMap[idx] = value
 
     # print(valueMap)
     return valueMap
@@ -191,10 +250,10 @@ def handwriting_collate_fn(batch):
     Funkcja collate do DataLoadera.
     Grupuje dane w batch i wyrównuje ich długości za pomocą paddingu.
     """
-    input_seqs, target_seqs, texts = zip(*batch)
+    input_seqs, target_seqs = zip(*batch)
     input_seqs = torch.stack(input_seqs)  # Batch input sequences
     target_seqs = torch.stack(target_seqs)  # Batch target sequences
-    return input_seqs, target_seqs, texts
+    return input_seqs, target_seqs
 
 def align(coords):
     """
@@ -263,9 +322,8 @@ def coords_to_offsets(coords):
 # dataset = HandwritingDataset(svg_files, "output/files.txt")
 # dataloader = DataLoader(dataset, batch_size=16, shuffle=True, collate_fn=handwriting_collate_fn)
 
-# getTextValue('witamZ Z',400,500)
-# for input_seq, target_seq, text in dataloader:
+# # getTextValue('witamZ Z',400,500)
+# for input_seq, target_seq, in dataloader:
 #     print(input_seq.shape)
 #     print(target_seq.shape)
-#     print(text)
 

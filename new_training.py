@@ -4,6 +4,7 @@ import torch
 import torch.optim as optim
 import os
 import core.data_prep as data
+import torch.nn as nn
 
 # dict(zip(string.ascii_lowercase, range(1,27)))
 # print(dict(zip(string.ascii_uppercase, range(27,27+26))))
@@ -11,16 +12,16 @@ import core.data_prep as data
 
 
 
-INPUT_SIZE = 3+len(data.alphabet)
+INPUT_SIZE = 4+len(data.alphabet)
 HIDDEN_SIZE = 40
-OUTPUT_SIZE = 3
+OUTPUT_SIZE = 4+len(data.alphabet)
 
 model = new_model.model(INPUT_SIZE,HIDDEN_SIZE,OUTPUT_SIZE)
 
 EPOCHS = 10_000
 LEARNING_RATE = 1e-6
 
-optimizer = optim.Adam(model.parameters, LEARNING_RATE)
+optimizer = optim.Adam(model.parameters(), LEARNING_RATE)
 
 # Ścieżka do folderu
 folder_path = "output"
@@ -32,3 +33,66 @@ svg_files = ["output/" + file for file in os.listdir(folder_path) if file.endswi
 
 dataset = data.HandwritingDataset(svg_files, files_content)
 dataloader = data.DataLoader(dataset, batch_size=16, shuffle=True, collate_fn=data.handwriting_collate_fn)
+
+cords_loss = nn.L1Loss()
+
+# alphabet_loss = nn.CrossEntropyLoss()
+
+end_loss = nn.BCELoss()
+
+eos_loss = nn.BCELoss()
+
+def custom_loss(preds, target_probs):
+    """
+    preds: Wyjścia modelu [batch_size, num_classes]
+    target_probs: Docelowe wartości (mogą nie sumować się do 1) [batch_size, num_classes]
+    """
+    # Dodanie małej wartości, by uniknąć log(0)
+    preds = torch.sigmoid(preds)  # Przekształcamy na przedział [0, 1] (jeśli wymagane)
+    log_preds = torch.log(preds + 1e-9)
+
+    # Użycie maski, by obliczać stratę tylko dla aktywnych elementów
+    loss = -torch.sum(target_probs * log_preds, dim=-1)  # Punktowe porównanie
+    return loss.mean()
+
+for i in range(EPOCHS):
+    model.train()
+    total = 0
+
+    total_mae = 0
+    total_ce = 0
+    total_bce = 0
+    total_eos = 0
+
+    for input_seq, target_seq in dataloader:
+
+        sample_size = input_seq.shape[0]
+
+        points, eos, alph, end = model(input_seq)
+
+        batch_mae = cords_loss(points,target_seq[:,:,:2])
+
+        batch_ce = custom_loss(alph,target_seq[:,:,3:56])
+
+        batch_bce = end_loss(end,target_seq[:,:,56])
+
+        batch_eos = eos_loss(eos, target_seq[:,:,2])
+
+        optimizer.zero_grad()
+
+        total_batch_loss = batch_mae + batch_ce + batch_bce + batch_eos
+
+        total_batch_loss.backward()
+
+        optimizer.step()
+
+        total += total_batch_loss.item()
+
+        total_mae += batch_mae.item()
+        total_ce += batch_ce.item()
+        total_bce += batch_bce.item()
+        total_eos += batch_eos.item()
+
+    print(f"Epoka [{i + 1}/{EPOCHS}], Loss: {total:.4f}")
+    print(f"  MAE: {total_mae:.4f}, Alphabet: {total_ce:.4f}, BCE (End): {total_bce:.4f}, BCE (EOS): {total_eos:.4f}")
+

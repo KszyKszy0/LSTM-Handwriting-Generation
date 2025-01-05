@@ -116,7 +116,6 @@ class HandwritingDataset(Dataset):
             # Dodanie całej sekwencji z pliku oraz odpowiadającego tekstu
             self.data.append((polylines, text, text_values, end_prob))
 
-            break
 
         # Normalizacja danych
         # self.normalize_data()

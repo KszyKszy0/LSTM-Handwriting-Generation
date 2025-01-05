@@ -1,15 +1,34 @@
 import string
 import new_model
+import torch
+import torch.optim as optim
+import os
+import core.data_prep as data
 
 # dict(zip(string.ascii_lowercase, range(1,27)))
 # print(dict(zip(string.ascii_uppercase, range(27,27+26))))
-alphabet = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5, 'f': 6, 'g': 7, 'h': 8, 'i': 9, 'j': 10, 'k': 11, 'l': 12, 'm': 13, 'n': 14, 'o': 15, 'p': 16, 'q': 17, 'r': 18, 's': 19, 't': 20, 'u': 21, 'v': 22, 'w': 23, 'x': 24, 'y': 25, 'z': 26,
-            'A': 27, 'B': 28, 'C': 29, 'D': 30, 'E': 31, 'F': 32, 'G': 33, 'H': 34, 'I': 35, 'J': 36, 'K': 37, 'L': 38, 'M': 39, 'N': 40, 'O': 41, 'P': 42, 'Q': 43, 'R': 44, 'S': 45, 'T': 46, 'U': 47, 'V': 48, 'W': 49, 'X': 50, 'Y': 51, 'Z': 52
-}
 
-INPUT_SIZE = 3+len(alphabet)
+
+
+
+INPUT_SIZE = 3+len(data.alphabet)
 HIDDEN_SIZE = 40
 OUTPUT_SIZE = 3
 
 model = new_model.model(INPUT_SIZE,HIDDEN_SIZE,OUTPUT_SIZE)
 
+EPOCHS = 10_000
+LEARNING_RATE = 1e-6
+
+optimizer = optim.Adam(model.parameters, LEARNING_RATE)
+
+# Ścieżka do folderu
+folder_path = "output"
+
+files_content = "output/files.txt"
+
+# Lista nazw plików z rozszerzeniem .svg
+svg_files = ["output/" + file for file in os.listdir(folder_path) if file.endswith('.svg')]
+
+dataset = data.HandwritingDataset(svg_files, files_content)
+dataloader = data.DataLoader(dataset, batch_size=16, shuffle=True, collate_fn=data.handwriting_collate_fn)

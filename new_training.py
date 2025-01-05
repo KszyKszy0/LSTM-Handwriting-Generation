@@ -5,12 +5,13 @@ import torch.optim as optim
 import os
 import core.data_prep as data
 import torch.nn as nn
+import datetime
 
 # dict(zip(string.ascii_lowercase, range(1,27)))
 # print(dict(zip(string.ascii_uppercase, range(27,27+26))))
 
 
-
+MODEL_PATH = "new_model_arch/"
 
 INPUT_SIZE = 4+len(data.alphabet)
 HIDDEN_SIZE = 40
@@ -95,4 +96,11 @@ for i in range(EPOCHS):
 
     print(f"Epoka [{i + 1}/{EPOCHS}], Loss: {total:.4f}")
     print(f"  MAE: {total_mae:.4f}, Alphabet: {total_ce:.4f}, BCE (End): {total_bce:.4f}, BCE (EOS): {total_eos:.4f}")
-
+    with open("logs/" + "log.txt", "a") as file:
+        file.write(f"Epoka [{i + 1}/{EPOCHS}], Loss: {total:.4f}")
+        file.write(f"  MAE: {total_mae:.4f}, Alphabet: {total_ce:.4f}, BCE (End): {total_bce:.4f}, BCE (EOS): {total_eos:.4f}" + "\n")
+    torch.save(model.state_dict(), MODEL_PATH + str(i) + " " + str(total))
+    torch.save({
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            }, MODEL_PATH + str(i) + " " + str(total))

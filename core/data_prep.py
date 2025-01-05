@@ -88,6 +88,7 @@ class HandwritingDataset(Dataset):
         self.data = []  # Lista sekwencji (każda sekwencja to lista punktów)
         self.texts = []  # Lista tekstów odpowiadających danym
         self.max_timesteps = 2000
+        self.realData = []
 
         # Wczytanie tekstów z pliku
         with open(text_file, 'r', encoding='utf-8') as f:
@@ -117,9 +118,35 @@ class HandwritingDataset(Dataset):
             self.data.append((polylines, text, text_values, end_prob))
 
 
-        # Normalizacja danych
-        # self.normalize_data()
+        for i in range(len(self.data)):
+            polyline = self.data[i][0]
+            padded_polyline = self.pad_sequence(polyline, self.max_timesteps)
+            input_seq = torch.tensor(padded_polyline[:-1], dtype=torch.float32)
+            target_seq = torch.tensor(padded_polyline[1:], dtype=torch.float32)
 
+            padded_alphabet = self.pad_alphabet(self.data[i][2], self.max_timesteps)
+            padded_alphabet = torch.tensor(padded_alphabet, dtype=torch.float32)
+
+            input_alphabet = torch.tensor(padded_alphabet[:-1], dtype=torch.float32)
+            target_alphabet = torch.tensor(padded_alphabet[1:], dtype=torch.float32)
+
+            padded_end = self.pad_end_probability(self.data[i][3], self.max_timesteps)
+            padded_end = torch.tensor(padded_end, dtype=torch.float32)
+
+            padded_end = padded_end.unsqueeze(1)
+
+            input_end = torch.tensor(padded_end[:-1], dtype=torch.float32)
+            target_end = torch.tensor(padded_end[1:], dtype=torch.float32)
+
+            full_input_sq = torch.cat((input_seq,input_alphabet,input_end), dim=1)
+            full_target_sq = torch.cat((target_seq,target_alphabet,target_end), dim=1)
+
+            self.realData.append((full_input_sq,full_target_sq))
+
+            if i % 100 == 0:
+                print(str(i) + "/" + str(len(self.data)) + " prepared")
+
+        print("Data ready")
 
     def normalize_data(self):
         """
@@ -183,24 +210,24 @@ class HandwritingDataset(Dataset):
         return sequence[:max_length]  # Przytnij do max_length (dla bezpieczeństwa)
 
     def __getitem__(self, idx):
-        polyline = self.data[idx][0]
-        padded_polyline = self.pad_sequence(polyline, self.max_timesteps)
-        input_seq = torch.tensor(padded_polyline[:-1], dtype=torch.float32)
-        target_seq = torch.tensor(padded_polyline[1:], dtype=torch.float32)
+        # polyline = self.data[idx][0]
+        # padded_polyline = self.pad_sequence(polyline, self.max_timesteps)
+        # input_seq = torch.tensor(padded_polyline[:-1], dtype=torch.float32)
+        # target_seq = torch.tensor(padded_polyline[1:], dtype=torch.float32)
 
-        padded_alphabet = self.pad_alphabet(self.data[idx][2], self.max_timesteps)
-        padded_alphabet = torch.tensor(padded_alphabet, dtype=torch.float32)
+        # padded_alphabet = self.pad_alphabet(self.data[idx][2], self.max_timesteps)
+        # padded_alphabet = torch.tensor(padded_alphabet, dtype=torch.float32)
 
-        input_alphabet = torch.tensor(padded_alphabet[:-1], dtype=torch.float32)
-        target_alphabet = torch.tensor(padded_alphabet[1:], dtype=torch.float32)
+        # input_alphabet = torch.tensor(padded_alphabet[:-1], dtype=torch.float32)
+        # target_alphabet = torch.tensor(padded_alphabet[1:], dtype=torch.float32)
 
-        padded_end = self.pad_end_probability(self.data[idx][3], self.max_timesteps)
-        padded_end = torch.tensor(padded_end, dtype=torch.float32)
+        # padded_end = self.pad_end_probability(self.data[idx][3], self.max_timesteps)
+        # padded_end = torch.tensor(padded_end, dtype=torch.float32)
 
-        padded_end = padded_end.unsqueeze(1)
+        # padded_end = padded_end.unsqueeze(1)
 
-        input_end = torch.tensor(padded_end[:-1], dtype=torch.float32)
-        target_end = torch.tensor(padded_end[1:], dtype=torch.float32)
+        # input_end = torch.tensor(padded_end[:-1], dtype=torch.float32)
+        # target_end = torch.tensor(padded_end[1:], dtype=torch.float32)
 
         # print(padded_end)
         # print(input_end)
@@ -215,10 +242,10 @@ class HandwritingDataset(Dataset):
         # print(input_alphabet.shape)
         # print(input_end.shape)
         # print(torch.cat((input_seq,input_alphabet,input_end),dim=1).shape)
-        full_input_sq = torch.cat((input_seq,input_alphabet,input_end), dim=1)
-        full_target_sq = torch.cat((target_seq,target_alphabet,target_end), dim=1)
+        # full_input_sq = torch.cat((input_seq,input_alphabet,input_end), dim=1)
+        # full_target_sq = torch.cat((target_seq,target_alphabet,target_end), dim=1)
 
-        return full_input_sq, full_target_sq
+        return self.realData[idx][0], self.realData[idx][1]
 
 
 def getTextValue(text, timeStep, length):

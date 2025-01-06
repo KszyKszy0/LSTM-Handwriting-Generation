@@ -11,15 +11,15 @@ import datetime
 # print(dict(zip(string.ascii_uppercase, range(27,27+26))))
 
 
-MODEL_PATH = "new_model_arch/"
+MODEL_PATH = "correct/"
 
 INPUT_SIZE = 4+len(data.alphabet)
-HIDDEN_SIZE = 40
+HIDDEN_SIZE = 800
 OUTPUT_SIZE = 4+len(data.alphabet)
 
-model = new_model.model(INPUT_SIZE,HIDDEN_SIZE,OUTPUT_SIZE)
+model = new_model.model(INPUT_SIZE,HIDDEN_SIZE,OUTPUT_SIZE,1)
 
-EPOCHS = 10_000
+EPOCHS = 100_000
 LEARNING_RATE = 1e-6
 
 optimizer = optim.Adam(model.parameters(), LEARNING_RATE)
@@ -42,6 +42,11 @@ cords_loss = nn.L1Loss()
 end_loss = nn.BCELoss()
 
 eos_loss = nn.BCELoss()
+
+# model_to_load = "new_model_arch/315 110.70211815834045"
+# checkpoint = torch.load(model_to_load, weights_only=True)
+# model.load_state_dict(checkpoint['model_state_dict'])
+# optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
 def custom_loss(preds, target_probs):
     """
@@ -69,7 +74,9 @@ for i in range(EPOCHS):
 
         sample_size = input_seq.shape[0]
 
-        points, eos, alph, end = model(input_seq)
+        hidden = model.init_hidden(sample_size)
+
+        points, eos, alph, end, hidden = model(input_seq, hidden)
 
         batch_mae = cords_loss(points,target_seq[:,:,:2])
 
@@ -94,12 +101,11 @@ for i in range(EPOCHS):
         total_bce += batch_bce.item()
         total_eos += batch_eos.item()
 
-    print(f"Epoka [{i + 1}/{EPOCHS}], Loss: {total:.4f}")
+    print(f"Epoka [{i}/{EPOCHS}], Loss: {total:.4f}")
     print(f"  MAE: {total_mae:.4f}, Alphabet: {total_ce:.4f}, BCE (End): {total_bce:.4f}, BCE (EOS): {total_eos:.4f}")
     with open("logs/" + "log.txt", "a") as file:
-        file.write(f"Epoka [{i + 1}/{EPOCHS}], Loss: {total:.4f}")
+        file.write(f"Epoka [{i}/{EPOCHS}], Loss: {total:.4f}")
         file.write(f"  MAE: {total_mae:.4f}, Alphabet: {total_ce:.4f}, BCE (End): {total_bce:.4f}, BCE (EOS): {total_eos:.4f}" + "\n")
-    torch.save(model.state_dict(), MODEL_PATH + str(i) + " " + str(total))
     torch.save({
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),

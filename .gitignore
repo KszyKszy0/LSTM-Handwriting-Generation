@@ -3,3 +3,5 @@ models/*
 core/__pycache__/*
 logs
 new_model_arch
+correct
+bigger

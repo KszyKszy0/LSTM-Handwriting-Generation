@@ -5,3 +5,7 @@ logs
 new_model_arch
 correct
 bigger
+__pycache__/new_model.cpython-311.pyc
+drawing_new_model.py
+test.svg
+single_letters

@@ -257,16 +257,17 @@ def getTextValue(text, timeStep, length):
         idx = alphabet[c]
         # print(i,idx)
 
-        licznik = i/I * length - timeStep
-        mianownik = 1/I * length
+        # licznik = i/I * length - timeStep
+        # mianownik = 1/I * length
 
-        value = 1 - np.abs(licznik/mianownik)
+        # value = 1 - np.abs(licznik/mianownik)
 
-        value = max(0,value)
-        # print(value)
+        # value = max(0,value)
+        # # print(value)
 
-        if value > valueMap[idx]:
-            valueMap[idx] = value
+        # if value > valueMap[idx]:
+        #     valueMap[idx] = value
+        valueMap[idx] = 1
 
     # print(valueMap)
     return valueMap

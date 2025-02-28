@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import os
+from torch.nn.utils.rnn import pad_sequence
 
 
 alphabet = { ' ': 0,'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5, 'f': 6, 'g': 7, 'h': 8, 'i': 9, 'j': 10, 'k': 11, 'l': 12, 'm': 13, 'n': 14, 'o': 15, 'p': 16, 'q': 17, 'r': 18, 's': 19, 't': 20, 'u': 21, 'v': 22, 'w': 23, 'x': 24, 'y': 25, 'z': 26,
@@ -138,10 +139,15 @@ class HandwritingDataset(Dataset):
             input_end = torch.tensor(padded_end[:-1], dtype=torch.float32)
             target_end = torch.tensor(padded_end[1:], dtype=torch.float32)
 
-            full_input_sq = torch.cat((input_seq,input_alphabet,input_end), dim=1)
-            full_target_sq = torch.cat((target_seq,target_alphabet,target_end), dim=1)
+            # full_input_sq = torch.cat((input_seq,input_alphabet,input_end), dim=1)
+            # full_target_sq = torch.cat((target_seq,target_alphabet,target_end), dim=1)
 
-            self.realData.append((full_input_sq,full_target_sq))
+            # pad without alphabet
+            full_input_sq = torch.cat((input_seq,input_end), dim=1)
+            full_target_sq = torch.cat((target_seq,target_end), dim=1)
+
+            self.realData.append((full_input_sq,full_target_sq,self.data[i][1]))
+            # print(self.realData[-1])
 
             if i % 100 == 0:
                 print(str(i) + "/" + str(len(self.data)) + " prepared")
@@ -182,7 +188,8 @@ class HandwritingDataset(Dataset):
         """
         Zwraca liczbę plików (sekwencji) w zbiorze danych.
         """
-        return len(self.data)
+        print(self.realData[0])
+        return len(self.realData[0])
 
     def pad_sequence(self, sequence, max_length):
         """
@@ -245,7 +252,7 @@ class HandwritingDataset(Dataset):
         # full_input_sq = torch.cat((input_seq,input_alphabet,input_end), dim=1)
         # full_target_sq = torch.cat((target_seq,target_alphabet,target_end), dim=1)
 
-        return self.realData[idx][0], self.realData[idx][1]
+        return self.realData[idx][0], self.realData[idx][1], self.realData[idx][2]
 
 
 def getTextValue(text, timeStep, length):
@@ -274,13 +281,21 @@ def getTextValue(text, timeStep, length):
 
 def handwriting_collate_fn(batch):
     """
-    Funkcja collate do DataLoadera.
-    Grupuje dane w batch i wyrównuje ich długości za pomocą paddingu.
+    Collate function for DataLoader.
+    Groups data into a batch and pads variable-length sequences.
     """
-    input_seqs, target_seqs = zip(*batch)
-    input_seqs = torch.stack(input_seqs)  # Batch input sequences
-    target_seqs = torch.stack(target_seqs)  # Batch target sequences
-    return input_seqs, target_seqs
+    input_seqs, target_seqs, texts = zip(*batch)
+
+    # Pad the input sequences (assumed to be tensors of shape [seq_len, input_dim])
+    input_seqs = pad_sequence(input_seqs, batch_first=True, padding_value=0)
+
+    # Pad the target sequences (assumed to be tensors of shape [seq_len, target_dim])
+    target_seqs = pad_sequence(target_seqs, batch_first=True, padding_value=0)
+
+    # Pad the text sequences (if they are also variable-length, e.g. sequences of character indices or embeddings)
+    # texts = pad_sequence(texts, batch_first=True, padding_value=0)
+
+    return input_seqs, target_seqs, texts
 
 def align(coords):
     """

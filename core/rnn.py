@@ -59,8 +59,15 @@ class MixtureDensityNetworkWithWindow(nn.Module):
         """
         batch_size, seq_len, _ = x.size()
         # print(text)
+        print(text)
         # text_len = text.size(1)
-        print(len(x),len(text))
+        text_len_list = []
+        for i in range(batch_size):
+            text_len_list.append(len(text[i]))
+
+        text_len_tensor = torch.tensor(text_len_list)
+        text_len = text_len_tensor.size(1)
+        # print(len(x),len(text))
         # text_len = 1
 
         outputs = []  # to collect LSTM outputs at each time step
@@ -126,50 +133,12 @@ class MixtureDensityNetworkWithWindow(nn.Module):
         return (torch.zeros(self.num_layers, batch_size, self.hidden_size),
                 torch.zeros(self.num_layers, batch_size, self.hidden_size))
 
-# Hyperparameters
-# input_size = 3  # x, y offsets and binary end-of-stroke feature
-# hidden_size = 400  # Hidden size of LSTM
-# num_layers = 3  # Number of LSTM layers
-# num_mixtures = 20  # Number of mixture components
-
-# # Create the model
-# model = MixtureDensityNetwork(input_size, hidden_size, num_layers, num_mixtures)
-
-# # Example usage
-# batch_size = 16
-# sequence_length = 100
-# x = torch.randn(batch_size, sequence_length, input_size)  # Random input sequence
-# hidden = model.init_hidden(batch_size)
-
-# # Forward pass
-# end_of_stroke, mixture_weights, means, std_devs, correlations, hidden = model(x, hidden)
-
-# print("End-of-stroke shape:", end_of_stroke.shape)
-# print("Mixture weights shape:", mixture_weights.shape)
-# print("Means shape:", means.shape)
-# print("Std deviations shape:", std_devs.shape)
-# print("Correlations shape:", correlations.shape)
-
-
 
 
 def mdn_loss(end_of_stroke, mixture_weights, means, std_devs, correlations, target):
     """
     Funkcja liczy stratę MDN na podstawie parametrów wyjściowych modelu i danych docelowych.
     """
-    # print('eos', end_of_stroke)
-    # print('weights', mixture_weights)
-    # print('means', means)
-    # print('devs', std_devs)
-    # print('correls', correlations)
-    # print('target', target)
-
-    # print('eos', end_of_stroke.shape)
-    # print('weights', mixture_weights.shape)
-    # print('means', means.shape)
-    # print('devs', std_devs.shape)
-    # print('correls', correlations.shape)
-    # print('target', target.shape)
 
     x, y = target[..., 0], target[..., 1]
     eos_target = target[..., 2]

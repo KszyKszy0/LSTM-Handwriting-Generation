@@ -60,15 +60,7 @@ def parse_svg(file_path):
 
     polylines = np.array(polylines)
 
-
-    # polylines = align(polylines)
-
     polylines = coords_to_offsets(polylines)
-
-
-    # polylines = normalize(polylines)
-    # print(polylines)
-
 
     return list(polylines)
 
@@ -100,53 +92,23 @@ class HandwritingDataset(Dataset):
         if len(self.texts) != len(svg_files):
             raise ValueError("Liczba tekstów w pliku nie zgadza się z liczbą plików SVG.")
 
+
         # Wczytanie danych z plików SVG
         for file, text in zip(svg_files, self.texts):
             # Parsowanie pliku SVG na punkty
             polylines = parse_svg(file)
 
-            text_values = []
-            end_prob = []
-
-
-            for i in range(len(polylines)):
-                text_values.append(getTextValue(text, i, len(polylines)))
-
-                end_prob.append(i/len(polylines))
-
-
             # Dodanie całej sekwencji z pliku oraz odpowiadającego tekstu
-            self.data.append((polylines, text, text_values, end_prob))
+            self.data.append((polylines, text))
 
 
         for i in range(len(self.data)):
             polyline = self.data[i][0]
             padded_polyline = self.pad_sequence(polyline, self.max_timesteps)
             input_seq = torch.tensor(padded_polyline[:-1], dtype=torch.float32)
-            target_seq = torch.tensor(padded_polyline[1:], dtype=torch.float32)
+            target_seq = torch.tensor(padded_polyline[1:], dtype=torch.float32)            
 
-            padded_alphabet = self.pad_alphabet(self.data[i][2], self.max_timesteps)
-            padded_alphabet = torch.tensor(padded_alphabet, dtype=torch.float32)
-
-            input_alphabet = torch.tensor(padded_alphabet[:-1], dtype=torch.float32)
-            target_alphabet = torch.tensor(padded_alphabet[1:], dtype=torch.float32)
-
-            padded_end = self.pad_end_probability(self.data[i][3], self.max_timesteps)
-            padded_end = torch.tensor(padded_end, dtype=torch.float32)
-
-            padded_end = padded_end.unsqueeze(1)
-
-            input_end = torch.tensor(padded_end[:-1], dtype=torch.float32)
-            target_end = torch.tensor(padded_end[1:], dtype=torch.float32)
-
-            # full_input_sq = torch.cat((input_seq,input_alphabet,input_end), dim=1)
-            # full_target_sq = torch.cat((target_seq,target_alphabet,target_end), dim=1)
-
-            # pad without alphabet
-            full_input_sq = torch.cat((input_seq,input_end), dim=1)
-            full_target_sq = torch.cat((target_seq,target_end), dim=1)
-
-            self.realData.append((full_input_sq,full_target_sq,self.data[i][1]))
+            self.realData.append((input_seq,target_seq,self.data[i][1]))
             # print(self.realData[-1])
 
             if i % 100 == 0:
@@ -188,8 +150,8 @@ class HandwritingDataset(Dataset):
         """
         Zwraca liczbę plików (sekwencji) w zbiorze danych.
         """
-        print(self.realData[0])
-        return len(self.realData[0])
+        print(len(self.realData))
+        return len(self.realData)
 
     def pad_sequence(self, sequence, max_length):
         """
@@ -217,41 +179,6 @@ class HandwritingDataset(Dataset):
         return sequence[:max_length]  # Przytnij do max_length (dla bezpieczeństwa)
 
     def __getitem__(self, idx):
-        # polyline = self.data[idx][0]
-        # padded_polyline = self.pad_sequence(polyline, self.max_timesteps)
-        # input_seq = torch.tensor(padded_polyline[:-1], dtype=torch.float32)
-        # target_seq = torch.tensor(padded_polyline[1:], dtype=torch.float32)
-
-        # padded_alphabet = self.pad_alphabet(self.data[idx][2], self.max_timesteps)
-        # padded_alphabet = torch.tensor(padded_alphabet, dtype=torch.float32)
-
-        # input_alphabet = torch.tensor(padded_alphabet[:-1], dtype=torch.float32)
-        # target_alphabet = torch.tensor(padded_alphabet[1:], dtype=torch.float32)
-
-        # padded_end = self.pad_end_probability(self.data[idx][3], self.max_timesteps)
-        # padded_end = torch.tensor(padded_end, dtype=torch.float32)
-
-        # padded_end = padded_end.unsqueeze(1)
-
-        # input_end = torch.tensor(padded_end[:-1], dtype=torch.float32)
-        # target_end = torch.tensor(padded_end[1:], dtype=torch.float32)
-
-        # print(padded_end)
-        # print(input_end)
-        # print(target_end)
-
-        # print(padded_alphabet)
-        # print(input_alphabet)
-        # print(target_alphabet)
-        # padded_alphabet = padded_alphabet.unsqueeze(0)
-        # print(padded_alphabet.shape)
-        # print(input_seq.shape)
-        # print(input_alphabet.shape)
-        # print(input_end.shape)
-        # print(torch.cat((input_seq,input_alphabet,input_end),dim=1).shape)
-        # full_input_sq = torch.cat((input_seq,input_alphabet,input_end), dim=1)
-        # full_target_sq = torch.cat((target_seq,target_alphabet,target_end), dim=1)
-
         return self.realData[idx][0], self.realData[idx][1], self.realData[idx][2]
 
 

@@ -9,12 +9,12 @@ import os
 import params
 
 # Ścieżka do folderu
-folder_path = "single_letters"
+folder_path = "output"
 
-files_content = "single_letters/files.txt"
+files_content = f"{folder_path}/files.txt"
 
 # Lista nazw plików z rozszerzeniem .svg
-svg_files = ["single_letters/" + file for file in os.listdir(folder_path) if file.endswith('.svg')]
+svg_files = [f"{folder_path}/" + file for file in os.listdir(folder_path) if file.endswith('.svg')]
 
 print(svg_files)
 
@@ -46,6 +46,11 @@ for epoch in range(epochs):
     for i, (input_seq, target_seq, text) in enumerate(dataloader):
         batch_size, seq_len, _ = input_seq.size()
 
+        print(batch_size)
+
+        print(input_seq.size())
+        print(target_seq.size())
+        print(len(text))
         # Initialize hidden state and cell state for the LSTM
         hidden = model.init_hidden(batch_size)
         # Initialize kappa (attention positions) as zeros.

@@ -48,9 +48,12 @@ def parse_svg(file_path):
         if points_str:
             # Zamień punkty na listę par współrzędnych
             points = []
+            i = 0
             for pair in points_str.split():
-                x, y = map(float, pair.split(','))
-                points.append([x, y, 0])  # Długopis pisze
+                if i % 3 == 0:
+                    x, y = map(float, pair.split(','))
+                    points.append([x, y, 0])  # Długopis pisze
+                i += 1
 
             # Dodaj stan "w powietrzu" po zakończeniu polyline
             if points:
@@ -87,11 +90,11 @@ class HandwritingDataset(Dataset):
         """
         self.data = []  # Lista sekwencji (każda sekwencja to lista punktów)
         self.texts = []  # Lista tekstów odpowiadających danym
-        self.max_timesteps = 2000
+        self.max_timesteps = 200
         self.realData = []
 
         # Wczytanie tekstów z pliku
-        with open(text_file, 'r', encoding='utf-8') as f:
+        with open(text_file, 'r', encoding='windows-1252') as f:
             lines = f.readlines()
             self.texts = [line.strip() for line in lines]
 

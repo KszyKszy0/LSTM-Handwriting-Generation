@@ -7,7 +7,7 @@ import math
 # 1. Define Character Dictionary
 # =========================
 # Here we define a simple vocabulary. You can expand it as needed.
-vocab = list("abcdefghijklmnopqrstuvwxyz ")  # letters and space
+vocab = list("abcdefghijklmnopqrstuvwxyz 1234567890")  # letters and space
 char_to_idx = {c: i for i, c in enumerate(vocab)}
 idx_to_char = {i: c for i, c in enumerate(vocab)}
 

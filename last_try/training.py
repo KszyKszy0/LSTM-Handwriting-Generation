@@ -11,11 +11,11 @@ import torch.nn as nn
 
 # Hyperparameters
 input_dim = 3          # (x, y, pen state)
-hidden_dim = 400       # hidden state size
+hidden_dim = 80       # hidden state size
 num_layers = 3         # number of LSTM layers
 num_mixtures = 20      # number of Gaussian mixtures in the MDN output
 window_mixtures = 10   # number of mixtures for the window (attention) mechanism
-epochs = 100
+epochs = 10000
 char_vocab_size = len(model_def.vocab)
 
 MODEL_PATH = "last_models"
@@ -44,7 +44,7 @@ model.char_to_idx = model_def.char_to_idx
 
 
 # Ścieżka do folderu
-folder_path = "output"
+folder_path = "mwoutput"
 files_content = f"{folder_path}/files.txt"
 # Lista nazw plików z rozszerzeniem .svg
 svg_files = [f"{folder_path}/" + file for file in os.listdir(folder_path) if file.endswith('.svg')]
@@ -52,7 +52,7 @@ svg_files = [f"{folder_path}/" + file for file in os.listdir(folder_path) if fil
 dataset = data.HandwritingDataset(svg_files, files_content)
 dataloader = data.DataLoader(dataset, batch_size=64, shuffle=True, collate_fn=data.handwriting_collate_fn)
 
-optimizer = optim.Adam(model.parameters(), lr=1e-5)
+optimizer = optim.Adam(model.parameters(), lr=5e-6)
 
 for epoch in range(epochs):
     model.train()

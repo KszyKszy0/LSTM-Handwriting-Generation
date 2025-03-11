@@ -65,7 +65,7 @@ def sample_from_mdn(mdn_params, num_mixtures, temperature=1.0):
 # =========================
 # 3. Handwriting Generation Function
 # =========================
-def generate_handwriting(model, text, seq_len=300, temperature=1.0):
+def generate_handwriting(model, text, seq_len=100, temperature=1.0):
     """
     Generate a handwriting sequence for a given text string.
     
@@ -175,7 +175,7 @@ def load_model_and_generate(model_path, text, seq_len=300, output_svg="output.sv
     # If not, set it here.
     if model.char_to_idx is None:
         # Example vocabulary: letters and space.
-        vocab = list("abcdefghijklmnopqrstuvwxyz ")
+        vocab = model_def.vocab
         model.char_to_idx = {c: i for i, c in enumerate(vocab)}
     
     # Generate handwriting strokes.
@@ -187,6 +187,6 @@ def load_model_and_generate(model_path, text, seq_len=300, output_svg="output.sv
 # =========================
 # Example usage:
 # Uncomment and modify the following lines to load your model and generate handwriting.
-model_path = "last_models/epoch20_loss-3.4043.pth"       # path to your saved model file
-text_to_generate = "a"
-load_model_and_generate(model_path, text_to_generate, seq_len=50, output_svg="handwriting.svg", temperature=0.8)
+model_path = "last_models/epoch74_loss4.0323.pth"       # path to your saved model file
+text_to_generate = "dzisiaj testuje to"
+load_model_and_generate(model_path, text_to_generate, seq_len=700, output_svg="handwriting.svg", temperature=0.8)

@@ -6,7 +6,7 @@ import model as model_def
 
 # Hyperparameters
 input_dim = 3          # (x, y, pen state)
-hidden_dim = 400       # hidden state size
+hidden_dim = 80       # hidden state size
 num_layers = 3         # number of LSTM layers
 num_mixtures = 20      # number of Gaussian mixtures in the MDN output
 window_mixtures = 10   # number of mixtures for the window (attention) mechanism
@@ -187,6 +187,6 @@ def load_model_and_generate(model_path, text, seq_len=300, output_svg="output.sv
 # =========================
 # Example usage:
 # Uncomment and modify the following lines to load your model and generate handwriting.
-model_path = "last_models/epoch74_loss4.0323.pth"       # path to your saved model file
+model_path = "last_models/epoch31_loss5.7969.pth"       # path to your saved model file
 text_to_generate = "dzisiaj testuje to"
 load_model_and_generate(model_path, text_to_generate, seq_len=700, output_svg="handwriting.svg", temperature=0.8)

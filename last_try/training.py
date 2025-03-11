@@ -4,6 +4,7 @@ import data_prep as data
 import os
 import torch.optim as optim
 import torch.nn as nn
+from torch.utils.data import random_split
 
 # =========================
 # 3. Example Usage
@@ -50,37 +51,64 @@ files_content = f"{folder_path}/files.txt"
 svg_files = [f"{folder_path}/" + file for file in os.listdir(folder_path) if file.endswith('.svg')]
 
 dataset = data.HandwritingDataset(svg_files, files_content)
-dataloader = data.DataLoader(dataset, batch_size=64, shuffle=True, collate_fn=data.handwriting_collate_fn)
+# dataloader = data.DataLoader(dataset, batch_size=64, shuffle=True, collate_fn=data.handwriting_collate_fn)
+
+optimizer = optim.Adam(model.parameters(), lr=5e-6)
+
+# Split dataset into 90% training and 20% validation.
+dataset_size = len(dataset)
+train_size = int(0.9 * dataset_size)
+val_size = dataset_size - train_size
+train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+print("Train size: ",train_size)
+print("Validation size: ",val_size)
+
+# Create DataLoaders for training and validation.
+train_loader = data.DataLoader(train_dataset, batch_size=64, shuffle=True, collate_fn=data.handwriting_collate_fn)
+val_loader = data.DataLoader(val_dataset, batch_size=64, shuffle=False, collate_fn=data.handwriting_collate_fn)
 
 optimizer = optim.Adam(model.parameters(), lr=5e-6)
 
 for epoch in range(epochs):
+    # ----- Training Phase -----
     model.train()
-    total_loss = 0
+    total_train_loss = 0
 
-    for i, (input_seq, target_seq, text) in enumerate(dataloader):
-
+    for i, (input_seq, target_seq, text) in enumerate(train_loader):
         optimizer.zero_grad()
 
         # Forward pass: compute MDN parameters for the input sequence.
         mdn_params_seq = model(input_seq, text)  # shape: (B, T, 6*num_mixtures+1)
 
-        # Compute the loss using our MDN loss function.
+        # Compute the training loss using our MDN loss function.
         loss = model_def.mdn_loss(mdn_params_seq, target_seq, num_mixtures)
 
-        # Backward pass and optimization
-        optimizer.zero_grad()
+        # Backward pass and optimization.
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
 
-        total_loss += loss.item()
+        total_train_loss += loss.item()
+        print(f"Batch [{i + 1}/{len(train_loader)}], Loss: {loss.item():.4f}")
 
-        print(f"Batch [{i + 1}/{len(dataloader)}], Loss: {loss.item():.4f}")
+    avg_train_loss = total_train_loss / len(train_loader)
+    print(f"Epoch [{epoch + 1}/{epochs}], Training Loss: {avg_train_loss:.4f}")
 
-    avg_loss = total_loss / len(dataloader)
-    print(f"Epoch [{epoch + 1}/{epochs}], Loss: {avg_loss:.4f}")
+    # ----- Validation Phase -----
+    model.eval()
+    total_val_loss = 0
+    with torch.no_grad():
+        for i, (input_seq, target_seq, text) in enumerate(val_loader):
+            # Forward pass: compute MDN parameters.
+            mdn_params_seq = model(input_seq, text)
+            loss = model_def.mdn_loss(mdn_params_seq, target_seq, num_mixtures)
+            total_val_loss += loss.item()
+
+    avg_val_loss = total_val_loss / len(val_loader)
+    print(f"Epoch [{epoch + 1}/{epochs}], Validation Loss: {avg_val_loss:.4f}")
+
+    # Save model checkpoint including both training and validation loss.
     torch.save({
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
-            }, MODEL_PATH + f"/epoch{epoch+1}_loss{avg_loss:.4f}.pth")
+            }, MODEL_PATH + f"/epoch{epoch+1}_train{avg_train_loss:.4f}_val{avg_val_loss:.4f}.pth")

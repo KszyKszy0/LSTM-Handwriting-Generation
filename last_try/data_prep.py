@@ -27,6 +27,8 @@ alphabet = { ' ': 0,'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5, 'f': 6, 'g': 7, 'h':
         [a][1] - tekst
 
 '''
+
+maximal = 0
 # Funkcja do wczytania i sparsowania pliku SVG
 def parse_svg(file_path):
     """
@@ -54,6 +56,11 @@ def parse_svg(file_path):
             if points:
                 last_point = points[-1][:2]  # Pobierz tylko x, y
                 points.append([last_point[0], last_point[1], 1])  # Długopis w powietrzu
+            
+            global maximal
+            if maximal < len(points):
+                maximal = len(points)
+                print("Max: ",maximal)
 
             polylines.extend(points)
 
@@ -100,8 +107,7 @@ class HandwritingDataset(Dataset):
 
             # Dodanie całej sekwencji z pliku oraz odpowiadającego tekstu
             self.data.append((polylines, text))
-
-
+        
         for i in range(len(self.data)):
             polyline = self.data[i][0]
             padded_polyline = self.pad_sequence(polyline, self.max_timesteps)

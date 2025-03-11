@@ -50,9 +50,9 @@ files_content = f"{folder_path}/files.txt"
 svg_files = [f"{folder_path}/" + file for file in os.listdir(folder_path) if file.endswith('.svg')]
 
 dataset = data.HandwritingDataset(svg_files, files_content)
-dataloader = data.DataLoader(dataset, batch_size=32, shuffle=True, collate_fn=data.handwriting_collate_fn)
+dataloader = data.DataLoader(dataset, batch_size=64, shuffle=True, collate_fn=data.handwriting_collate_fn)
 
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=1e-5)
 
 for epoch in range(epochs):
     model.train()
@@ -83,4 +83,4 @@ for epoch in range(epochs):
     torch.save({
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
-            }, MODEL_PATH + f"epoch{epoch+1}_loss{avg_loss:.4f}.pth")
+            }, MODEL_PATH + f"/epoch{epoch+1}_loss{avg_loss:.4f}.pth")

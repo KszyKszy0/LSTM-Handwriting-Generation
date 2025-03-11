@@ -183,6 +183,45 @@ class HandwritingRNN(nn.Module):
         # Final shape: (batch, seq_len, 6*num_mixtures + 1)
         mdn_params_seq = torch.stack(outputs, dim=1)
         return mdn_params_seq
+    
+    def generate_step(self, x_t, hidden, prev_kappa, window_vec, text_encoded):
+        """
+        Perform one generation step.
+        
+        Args:
+          x_t: Current pen stroke input of shape (batch, input_dim).
+          hidden: Previous LSTM hidden state.
+          prev_kappa: Previous window position parameters, shape (batch, window_mixtures).
+          window_vec: Previous window vector of shape (batch, char_vocab_size).
+          text_encoded: One-hot encoded text of shape (batch, max_text_len, char_vocab_size).
+          
+        Returns:
+          mdn_params: MDN raw output for the current step, shape (batch, 6*num_mixtures+1).
+          hidden: Updated LSTM hidden state.
+          kappa: Updated window position (to be used in next step).
+          window_vec: Updated window vector.
+        """
+        batch_size = x_t.size(0)  # typically 1 during generation
+        # Concatenate current stroke and window vector.
+        lstm_input = torch.cat([x_t, window_vec], dim=1).unsqueeze(1)
+        out, hidden = self.lstm(lstm_input, hidden)
+        h_t = out.squeeze(1)
+        # Compute window parameters.
+        window_params = self.fc_window(h_t).view(batch_size, self.window_mixtures, 3)
+        delta_kappa = torch.exp(window_params[:, :, 0])
+        alpha = torch.exp(window_params[:, :, 1])
+        beta = torch.exp(window_params[:, :, 2])
+        kappa = prev_kappa + delta_kappa  # monotonic increase
+        # Compute the attention (window) over the text.
+        max_text_len = text_encoded.size(1)
+        u = torch.arange(0, max_text_len, device=x_t.device).float().view(1, 1, -1)
+        phi = alpha.unsqueeze(2) * torch.exp(-beta.unsqueeze(2) * (kappa.unsqueeze(2) - u)**2)
+        phi = phi.sum(dim=1)
+        phi_unsqueezed = phi.unsqueeze(1)
+        window_vec = torch.bmm(phi_unsqueezed, text_encoded).squeeze(1)
+        # Compute MDN parameters.
+        mdn_params = self.fc_mdn(h_t)
+        return mdn_params, hidden, kappa, window_vec
 
     def encode_text_batch(self, text_batch):
         """

@@ -65,45 +65,46 @@ def sample_from_mdn(mdn_params, num_mixtures, temperature=1.0):
 # =========================
 # 3. Handwriting Generation Function
 # =========================
-def generate_handwriting(model, text, seq_len=100, temperature=1.0):
+def generate_handwriting(model, text, seq_len=300, temperature=1.0):
     """
     Generate a handwriting sequence for a given text string.
     
     Args:
-      model: The trained HandwritingRNN model.
-      text: The text (string) to generate handwriting for.
+      model: Trained HandwritingRNN.
+      text: Text string to condition on.
       seq_len: Number of time steps to generate.
       temperature: Sampling temperature.
       
     Returns:
-      strokes: List of (x, y, pen_state) tuples representing generated strokes.
+      strokes: List of (x, y, pen_state) tuples.
     """
     model.eval()
     device = next(model.parameters()).device
     with torch.no_grad():
-        # Encode text using the model's helper.
         text_encoded, _ = model.encode_text_batch([text])
         text_encoded = text_encoded.to(device)
         batch_size = 1
-        
-        # Initialize hidden state, window parameters.
-        hidden = None
+
+        # Initialize hidden states for both LSTM layers.
+        h1 = torch.zeros(batch_size, model.hidden_dim, device=device)
+        c1 = torch.zeros(batch_size, model.hidden_dim, device=device)
+        hidden1 = (h1, c1)
+        h2 = torch.zeros(batch_size, model.hidden_dim, device=device)
+        c2 = torch.zeros(batch_size, model.hidden_dim, device=device)
+        hidden2 = (h2, c2)
+
         prev_kappa = torch.zeros(batch_size, model.window_mixtures, device=device)
         window_vec = torch.zeros(batch_size, model.char_vocab_size, device=device)
-        # Start with an initial stroke (zeros).
         current_input = torch.zeros(batch_size, model.input_dim, device=device)
         strokes = []
         
-        # Iteratively generate one time step at a time.
         for t in range(seq_len):
-            mdn_params, hidden, prev_kappa, window_vec = model.generate_step(
-                current_input, hidden, prev_kappa, window_vec, text_encoded)
-            # Sample stroke from MDN parameters.
+            mdn_params, hidden1, hidden2, prev_kappa, window_vec = model.generate_step(
+                current_input, hidden1, hidden2, prev_kappa, window_vec, text_encoded)
             x_sample, y_sample, pen_sample = sample_from_mdn(mdn_params, model.num_mixtures, temperature)
-            # Update current input for next step.
             current_input = torch.tensor([[x_sample, y_sample, pen_sample]], device=device, dtype=torch.float32)
             strokes.append((x_sample, y_sample, pen_sample))
-        
+            
         return strokes
     
 
@@ -187,6 +188,6 @@ def load_model_and_generate(model_path, text, seq_len=300, output_svg="output.sv
 # =========================
 # Example usage:
 # Uncomment and modify the following lines to load your model and generate handwriting.
-model_path = "last_models/epoch31_loss5.7969.pth"       # path to your saved model file
+model_path = "last_models/epoch34_train5.8604_val5.7814.pth"       # path to your saved model file
 text_to_generate = "dzisiaj testuje to"
 load_model_and_generate(model_path, text_to_generate, seq_len=700, output_svg="handwriting.svg", temperature=0.8)

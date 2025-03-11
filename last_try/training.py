@@ -13,7 +13,6 @@ from torch.utils.data import random_split
 # Hyperparameters
 input_dim = 3          # (x, y, pen state)
 hidden_dim = 80       # hidden state size
-num_layers = 3         # number of LSTM layers
 num_mixtures = 20      # number of Gaussian mixtures in the MDN output
 window_mixtures = 10   # number of mixtures for the window (attention) mechanism
 epochs = 10000
@@ -22,7 +21,7 @@ char_vocab_size = len(model_def.vocab)
 MODEL_PATH = "last_models"
 
 # Instantiate the model
-model = model_def.HandwritingRNN(input_dim, hidden_dim, num_layers, num_mixtures, char_vocab_size, window_mixtures)
+model = model_def.HandwritingRNN(input_dim, hidden_dim, num_mixtures, char_vocab_size, window_mixtures)
 # Assign the character dictionary to the model for use in text encoding.
 model.char_to_idx = model_def.char_to_idx
 

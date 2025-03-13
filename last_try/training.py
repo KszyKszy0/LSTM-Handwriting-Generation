@@ -12,9 +12,9 @@ from torch.utils.data import random_split
 
 # Hyperparameters
 input_dim = 3          # (x, y, pen state)
-hidden_dim = 80       # hidden state size
-num_mixtures = 20      # number of Gaussian mixtures in the MDN output
-window_mixtures = 10   # number of mixtures for the window (attention) mechanism
+hidden_dim = 500       # hidden state size
+num_mixtures = 4      # number of Gaussian mixtures in the MDN output
+window_mixtures = 2   # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
 
@@ -22,6 +22,8 @@ MODEL_PATH = "last_models"
 
 # Instantiate the model
 model = model_def.HandwritingRNN(input_dim, hidden_dim, num_mixtures, char_vocab_size, window_mixtures)
+# checkpoint = torch.load("last_models/epoch1271_train0.1182_val0.1379.pth")
+# model.load_state_dict(checkpoint['model_state_dict'])
 # Assign the character dictionary to the model for use in text encoding.
 model.char_to_idx = model_def.char_to_idx
 
@@ -52,7 +54,8 @@ svg_files = [f"{folder_path}/" + file for file in os.listdir(folder_path) if fil
 dataset = data.HandwritingDataset(svg_files, files_content)
 # dataloader = data.DataLoader(dataset, batch_size=64, shuffle=True, collate_fn=data.handwriting_collate_fn)
 
-optimizer = optim.Adam(model.parameters(), lr=5e-6)
+optimizer = optim.Adam(model.parameters(), lr=1e-5)
+# optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
 # Split dataset into 90% training and 20% validation.
 dataset_size = len(dataset)
@@ -66,7 +69,7 @@ print("Validation size: ",val_size)
 train_loader = data.DataLoader(train_dataset, batch_size=64, shuffle=True, collate_fn=data.handwriting_collate_fn)
 val_loader = data.DataLoader(val_dataset, batch_size=64, shuffle=False, collate_fn=data.handwriting_collate_fn)
 
-optimizer = optim.Adam(model.parameters(), lr=5e-6)
+starter_epoch = 0
 
 for epoch in range(epochs):
     # ----- Training Phase -----
@@ -91,7 +94,7 @@ for epoch in range(epochs):
         print(f"Batch [{i + 1}/{len(train_loader)}], Loss: {loss.item():.4f}")
 
     avg_train_loss = total_train_loss / len(train_loader)
-    print(f"Epoch [{epoch + 1}/{epochs}], Training Loss: {avg_train_loss:.4f}")
+    print(f"Epoch [{starter_epoch + epoch + 1}/{epochs}], Training Loss: {avg_train_loss:.4f}")
 
     # ----- Validation Phase -----
     model.eval()
@@ -104,10 +107,10 @@ for epoch in range(epochs):
             total_val_loss += loss.item()
 
     avg_val_loss = total_val_loss / len(val_loader)
-    print(f"Epoch [{epoch + 1}/{epochs}], Validation Loss: {avg_val_loss:.4f}")
+    print(f"Epoch [{starter_epoch + epoch + 1}/{epochs}], Validation Loss: {avg_val_loss:.4f}")
 
     # Save model checkpoint including both training and validation loss.
     torch.save({
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
-            }, MODEL_PATH + f"/epoch{epoch+1}_train{avg_train_loss:.4f}_val{avg_val_loss:.4f}.pth")
+            }, MODEL_PATH + f"/epoch{starter_epoch + epoch+1}_train{avg_train_loss:.4f}_val{avg_val_loss:.4f}.pth")

@@ -6,10 +6,10 @@ import model as model_def
 
 # Hyperparameters
 input_dim = 3          # (x, y, pen state)
-hidden_dim = 80       # hidden state size
+hidden_dim = 500       # hidden state size
 num_layers = 3         # number of LSTM layers
-num_mixtures = 20      # number of Gaussian mixtures in the MDN output
-window_mixtures = 10   # number of mixtures for the window (attention) mechanism
+num_mixtures = 4      # number of Gaussian mixtures in the MDN output
+window_mixtures = 2   # number of mixtures for the window (attention) mechanism
 epochs = 100
 char_vocab_size = len(model_def.vocab)
 
@@ -167,7 +167,7 @@ def load_model_and_generate(model_path, text, seq_len=300, output_svg="output.sv
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # Load the model.
     # model = torch.load(model_path, map_location=device)
-    model = model_def.HandwritingRNN(input_dim, hidden_dim, num_layers, num_mixtures, char_vocab_size, window_mixtures)
+    model = model_def.HandwritingRNN(input_dim, hidden_dim, num_mixtures, char_vocab_size, window_mixtures)
     checkpoint = torch.load(model_path, weights_only=True)
     model.load_state_dict(checkpoint['model_state_dict'])
     model.to(device)
@@ -188,6 +188,6 @@ def load_model_and_generate(model_path, text, seq_len=300, output_svg="output.sv
 # =========================
 # Example usage:
 # Uncomment and modify the following lines to load your model and generate handwriting.
-model_path = "last_models/epoch34_train5.8604_val5.7814.pth"       # path to your saved model file
-text_to_generate = "dzisiaj testuje to"
-load_model_and_generate(model_path, text_to_generate, seq_len=700, output_svg="handwriting.svg", temperature=0.8)
+model_path = "last_models/epoch588_train1.3889_val1.3503.pth"       # path to your saved model file
+text_to_generate = "teraz test"
+load_model_and_generate(model_path, text_to_generate, seq_len=200, output_svg="handwriting.svg", temperature=0.8)

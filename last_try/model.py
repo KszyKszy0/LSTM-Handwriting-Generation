@@ -299,14 +299,15 @@ def mdn_loss(mdn_params_seq, target_seq, num_mixtures):
     # -------------------------
     weighted_prob = pi * component_prob  # (B, T, M)
     prob = torch.sum(weighted_prob, dim=-1) + 1e-8  # (B, T); add epsilon to avoid log(0)
+    # prob = torch.clamp(prob, min=1e-7, max=1-1e-7)
 
     # Negative log-likelihood for the coordinates.
     loss_mdn = -torch.log(prob)  # (B, T)
-
     # -------------------------
     # Pen state loss:
     # Use binary cross-entropy between the predicted pen probability and target.
     # -------------------------
+    pen_prob = torch.clamp(pen_prob, min=1e-7, max=1-1e-7)
     loss_pen = F.binary_cross_entropy(pen_prob, pen_target, reduction='none')  # (B, T)
 
     # Total loss at each time step is the sum of the MDN loss and the pen loss.

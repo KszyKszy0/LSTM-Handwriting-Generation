@@ -50,7 +50,7 @@ def parse_svg(file_path):
             points = []
             i = 0
             for pair in points_str.split():
-                if i % 3 == 0:
+                if i % 2 == 0:
                     x, y = map(float, pair.split(','))
                     points.append([x, y, 0])  # Długopis pisze
                 i += 1
@@ -90,7 +90,7 @@ class HandwritingDataset(Dataset):
         """
         self.data = []  # Lista sekwencji (każda sekwencja to lista punktów)
         self.texts = []  # Lista tekstów odpowiadających danym
-        self.max_timesteps = 200
+        self.max_timesteps = 260
         self.realData = []
 
         # Wczytanie tekstów z pliku

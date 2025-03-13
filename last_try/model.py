@@ -40,7 +40,7 @@ class HandwritingRNN(nn.Module):
         self.fc_window = nn.Linear(hidden_dim, 3 * window_mixtures)
 
         # LSTM2: Processes the concatenation of LSTM1's output and the updated window vector.
-        self.lstm2 = nn.LSTMCell(hidden_dim + char_vocab_size, hidden_dim)
+        self.lstm2 = nn.LSTMCell(hidden_dim + char_vocab_size + input_dim, hidden_dim)
 
         # MDN output layer: For each mixture component predict:
         #   pi, mu1, mu2, sigma1, sigma2, rho  (6 parameters per mixture)
@@ -115,7 +115,7 @@ class HandwritingRNN(nn.Module):
             # -------------------------
             # LSTM2: Process the concatenation of LSTM1's output and the window vector.
             # -------------------------
-            lstm2_input = torch.cat([h1, window_vec], dim=1)
+            lstm2_input = torch.cat([h1, window_vec, x_t], dim=1)
             h2, c2 = self.lstm2(lstm2_input, (h2, c2))
             
             # -------------------------
@@ -167,7 +167,7 @@ class HandwritingRNN(nn.Module):
         window_vec = torch.bmm(phi.unsqueeze(1), text_encoded).squeeze(1)
 
         # LSTM2 update.
-        lstm2_input = torch.cat([h1, window_vec], dim=1)
+        lstm2_input = torch.cat([h1, window_vec, x_t], dim=1)
         h2, c2 = self.lstm2(lstm2_input, hidden2)
 
         # MDN output.

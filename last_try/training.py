@@ -12,9 +12,9 @@ from torch.utils.data import random_split
 
 # Hyperparameters
 input_dim = 3          # (x, y, pen state)
-hidden_dim = 500       # hidden state size
+hidden_dim = 400       # hidden state size
 num_mixtures = 4      # number of Gaussian mixtures in the MDN output
-window_mixtures = 2   # number of mixtures for the window (attention) mechanism
+window_mixtures = 10   # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
 
@@ -69,32 +69,44 @@ print("Validation size: ",val_size)
 train_loader = data.DataLoader(train_dataset, batch_size=64, shuffle=True, collate_fn=data.handwriting_collate_fn)
 val_loader = data.DataLoader(val_dataset, batch_size=64, shuffle=False, collate_fn=data.handwriting_collate_fn)
 
+# Add learning rate scheduler 
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3, verbose=True, min_lr=1e-7)
+
 starter_epoch = 0
+best_val_loss = float('inf')
 
 for epoch in range(epochs):
     # ----- Training Phase -----
     model.train()
     total_train_loss = 0
-
+    
     for i, (input_seq, target_seq, text) in enumerate(train_loader):
         optimizer.zero_grad()
-
+        
         # Forward pass: compute MDN parameters for the input sequence.
         mdn_params_seq = model(input_seq, text)  # shape: (B, T, 6*num_mixtures+1)
-
+        
         # Compute the training loss using our MDN loss function.
         loss = model_def.mdn_loss(mdn_params_seq, target_seq, num_mixtures)
-
+        
         # Backward pass and optimization.
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
-
+        
         total_train_loss += loss.item()
-        print(f"Batch [{i + 1}/{len(train_loader)}], Loss: {loss.item():.4f}")
 
+        f = open("logi.txt", "a")
+        print(f"Batch [{i + 1}/{len(train_loader)}], Loss: {loss.item():.4f}")
+        f.write(f"Batch [{i + 1}/{len(train_loader)}], Loss: {loss.item():.4f}\n")
+        f.close()
+    
     avg_train_loss = total_train_loss / len(train_loader)
+
+    f = open("logi.txt", "a")
     print(f"Epoch [{starter_epoch + epoch + 1}/{epochs}], Training Loss: {avg_train_loss:.4f}")
+    f.write(f"Epoch [{starter_epoch + epoch + 1}/{epochs}], Training Loss: {avg_train_loss:.4f}\n")
+    f.close()
 
     # ----- Validation Phase -----
     model.eval()
@@ -105,12 +117,33 @@ for epoch in range(epochs):
             mdn_params_seq = model(input_seq, text)
             loss = model_def.mdn_loss(mdn_params_seq, target_seq, num_mixtures)
             total_val_loss += loss.item()
-
+    
     avg_val_loss = total_val_loss / len(val_loader)
-    print(f"Epoch [{starter_epoch + epoch + 1}/{epochs}], Validation Loss: {avg_val_loss:.4f}")
 
+    f = open("logi.txt", "a")
+    print(f"Epoch [{starter_epoch + epoch + 1}/{epochs}], Validation Loss: {avg_val_loss:.4f}")
+    f.write(f"Epoch [{starter_epoch + epoch + 1}/{epochs}], Validation Loss: {avg_val_loss:.4f}\n")
+    f.close()
+    
+    # Step the scheduler based on validation loss
+    scheduler.step(avg_val_loss)
+    
     # Save model checkpoint including both training and validation loss.
     torch.save({
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
+            'scheduler_state_dict': scheduler.state_dict(),  # Also save scheduler state
+            'epoch': starter_epoch + epoch,
+            'val_loss': avg_val_loss,
             }, MODEL_PATH + f"/epoch{starter_epoch + epoch+1}_train{avg_train_loss:.4f}_val{avg_val_loss:.4f}.pth")
+    
+    # Save best model separately
+    if avg_val_loss < best_val_loss:
+        best_val_loss = avg_val_loss
+        torch.save({
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_state_dict': scheduler.state_dict(),
+                'epoch': starter_epoch + epoch,
+                'val_loss': avg_val_loss,
+                }, MODEL_PATH + f"/best_model.pth")

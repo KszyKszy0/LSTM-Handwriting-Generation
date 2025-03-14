@@ -188,6 +188,6 @@ def load_model_and_generate(model_path, text, seq_len=300, output_svg="output.sv
 # =========================
 # Example usage:
 # Uncomment and modify the following lines to load your model and generate handwriting.
-model_path = "last_models/epoch48_train3.0134_val3.0285.pth"       # path to your saved model file
+model_path = "last_models/epoch184_train2.7841_val2.8113.pth"       # path to your saved model file
 text_to_generate = "teraz test"
 load_model_and_generate(model_path, text_to_generate, seq_len=200, output_svg="handwriting.svg", temperature=0.8)

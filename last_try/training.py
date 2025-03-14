@@ -18,7 +18,7 @@ window_mixtures = 10   # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
 
-MODEL_PATH = "last_models"
+MODEL_PATH = "8e4l"
 
 # Instantiate the model
 model = model_def.HandwritingRNN(input_dim, hidden_dim, num_mixtures, char_vocab_size, window_mixtures)
@@ -54,7 +54,7 @@ svg_files = [f"{folder_path}/" + file for file in os.listdir(folder_path) if fil
 dataset = data.HandwritingDataset(svg_files, files_content)
 # dataloader = data.DataLoader(dataset, batch_size=64, shuffle=True, collate_fn=data.handwriting_collate_fn)
 
-optimizer = optim.Adam(model.parameters(), lr=1e-5)
+optimizer = optim.Adam(model.parameters(), lr=8e-4)
 # optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
 # Split dataset into 90% training and 20% validation.

@@ -13,12 +13,12 @@ from torch.utils.data import random_split
 # Hyperparameters
 input_dim = 3          # (x, y, pen state)
 hidden_dim = 400       # hidden state size
-num_mixtures = 4      # number of Gaussian mixtures in the MDN output
+num_mixtures = 20      # number of Gaussian mixtures in the MDN output
 window_mixtures = 10   # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
 
-MODEL_PATH = "8e4l"
+MODEL_PATH = "last_models"
 
 # Instantiate the model
 model = model_def.HandwritingRNN(input_dim, hidden_dim, num_mixtures, char_vocab_size, window_mixtures)
@@ -54,7 +54,7 @@ svg_files = [f"{folder_path}/" + file for file in os.listdir(folder_path) if fil
 dataset = data.HandwritingDataset(svg_files, files_content)
 # dataloader = data.DataLoader(dataset, batch_size=64, shuffle=True, collate_fn=data.handwriting_collate_fn)
 
-optimizer = optim.Adam(model.parameters(), lr=8e-4)
+optimizer = optim.Adam(model.parameters(), lr=5e-4)
 # optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
 # Split dataset into 90% training and 20% validation.

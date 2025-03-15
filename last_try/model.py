@@ -129,51 +129,57 @@ class HandwritingRNN(nn.Module):
 
     def generate_step(self, x_t, hidden1, hidden2, prev_kappa, window_vec, text_encoded):
         """
-        Generation step: process one time step and update all states.
+        Generation step that processes one time step and returns attention weights.
         
         Args:
-          x_t: Current pen stroke input of shape (batch, input_dim) (typically batch=1 during generation).
+          x_t: (batch, input_dim)
           hidden1: Tuple (h1, c1) for LSTM1.
           hidden2: Tuple (h2, c2) for LSTM2.
-          prev_kappa: Previous kappa (batch, window_mixtures).
-          window_vec: Previous window vector (batch, char_vocab_size).
-          text_encoded: One-hot encoded text of shape (batch, max_text_len, char_vocab_size).
+          prev_kappa: (batch, window_mixtures)
+          window_vec: (batch, char_vocab_size)
+          text_encoded: (batch, max_text_len, char_vocab_size)
           
         Returns:
-          mdn_params: MDN output for current time step (batch, 6*num_mixtures+1).
-          hidden1: Updated LSTM1 hidden state.
-          hidden2: Updated LSTM2 hidden state.
+          mdn_params: MDN output, shape (batch, 6*num_mixtures+1)
+          hidden1: Updated LSTM1 state.
+          hidden2: Updated LSTM2 state.
           kappa: Updated kappa.
           window_vec: Updated window vector.
+          phi: Attention weights over text positions, shape (batch, max_text_len)
         """
         batch_size = x_t.size(0)
         device = x_t.device
         max_text_len = text_encoded.size(1)
 
-        # LSTM1 update.
+        # --- LSTM1 Update ---
         lstm1_input = torch.cat([x_t, window_vec], dim=1)
         h1, c1 = self.lstm1(lstm1_input, hidden1)
-        
-        # Compute window parameters.
+
+        # --- Window Mechanism ---
         window_params = self.fc_window(h1).view(batch_size, self.window_mixtures, 3)
         delta_kappa = torch.exp(window_params[:, :, 0])
         alpha = torch.exp(window_params[:, :, 1])
         beta = torch.exp(window_params[:, :, 2])
-        kappa = prev_kappa + delta_kappa
-        # Compute attention over text.
-        u = torch.arange(0, max_text_len, device=device).float().view(1, 1, -1)
-        phi = alpha.unsqueeze(2) * torch.exp(-beta.unsqueeze(2) * (kappa.unsqueeze(2) - u) ** 2)
-        phi = phi.sum(dim=1)
-        window_vec = torch.bmm(phi.unsqueeze(1), text_encoded).squeeze(1)
+        kappa = prev_kappa + delta_kappa  # Monotonic update.
 
-        # LSTM2 update.
+
+        # Compute attention over text positions, including an extra "end-of-text" token.
+        # u now goes from 0 to max_text_len (i.e. U+1 positions)
+        u = torch.arange(0, max_text_len + 1, device=device).float().view(1, 1, -1)
+        phi_components = alpha.unsqueeze(2) * torch.exp(-beta.unsqueeze(2) * (kappa.unsqueeze(2) - u) ** 2)
+        phi = phi_components.sum(dim=1)  # shape: (batch, max_text_len+1)
+        
+        # Compute new window vector using only the first max_text_len positions.
+        window_vec = torch.bmm(phi[:, :-1].unsqueeze(1), text_encoded).squeeze(1)
+
+        # --- LSTM2 Update ---
         lstm2_input = torch.cat([h1, window_vec, x_t], dim=1)
         h2, c2 = self.lstm2(lstm2_input, hidden2)
 
-        # MDN output.
+        # --- MDN Output ---
         mdn_params = self.fc_mdn(h2)
 
-        return mdn_params, (h1, c1), (h2, c2), kappa, window_vec
+        return mdn_params, (h1, c1), (h2, c2), kappa, window_vec, phi
 
     def encode_text_batch(self, text_batch):
         """

@@ -9,7 +9,7 @@ def extract_model_info(filename):
     Example filename: "epoch597_train2.3587_val2.3990.pth"
     """
     # Create a regex pattern to match the filename components
-    pattern = r"epoch(\d+)_train(\d+\.\d+)_val(\d+\.\d+)\.pth"
+    pattern = r"epoch(\d+)_train([-]?\d+\.\d+)_val([-]?\d+\.\d+)\.pth"
     match = re.match(pattern, os.path.basename(filename))
     
     if match:
@@ -34,6 +34,7 @@ def main():
     model_data = []
     for model_file in model_files:
         epoch, train_value, val_value = extract_model_info(model_file)
+        # print(epoch, train_value, val_value)
         if epoch is not None:
             model_data.append({
                 'filename': os.path.basename(model_file),

@@ -50,29 +50,61 @@ def parse_svg(file_path):
             points = []
             i = 0
             for pair in points_str.split():
-                if i % 2 == 0:
-                    x, y = map(float, pair.split(','))
-                    points.append([x, y, 0])  # Długopis pisze
+
+                x, y = map(float, pair.split(','))
+                points.append([x, y, 0])  # Długopis pisze
                 i += 1
 
             # Dodaj stan "w powietrzu" po zakończeniu polyline
             if points:
                 last_point = points[-1][:2]  # Pobierz tylko x, y
                 points.append([last_point[0], last_point[1], 1])  # Długopis w powietrzu
-            
-            global maximal
-            if maximal < len(points):
-                maximal = len(points)
-                print("Max: ",maximal)
 
             polylines.extend(points)
 
 
-    polylines = np.array(polylines)
+    polylines = adaptive_resample(polylines)
 
+    global maximal
+    if maximal < len(polylines):
+        maximal = len(polylines)
+        print("Max: ",maximal)
+
+    polylines = np.array(polylines)
+    
     polylines = coords_to_offsets(polylines)
 
     return list(polylines)
+
+def adaptive_resample(stroke_data, min_distance=7.0):
+    """
+    Resample stroke data to reduce resolution while preserving character.
+    
+    Args:
+        stroke_data: Original high-resolution stroke data (x, y, pen_state)
+        min_distance: Minimum Euclidean distance between consecutive points
+        
+    Returns:
+        Resampled stroke data with reduced point density
+    """
+    resampled = [stroke_data[0]]  # Always keep the first point
+    last_point = stroke_data[0]
+    
+    for point in stroke_data[1:]:
+        # Always keep pen-up events regardless of distance
+        if point[2] != last_point[2]:
+            resampled.append(point)
+            last_point = point
+            continue
+            
+        # Calculate Euclidean distance
+        distance = ((point[0] - last_point[0])**2 + (point[1] - last_point[1])**2)**0.5
+        
+        if distance >= min_distance:
+            resampled.append(point)
+            last_point = point
+    
+    return resampled
 
 
 '''
@@ -90,7 +122,7 @@ class HandwritingDataset(Dataset):
         """
         self.data = []  # Lista sekwencji (każda sekwencja to lista punktów)
         self.texts = []  # Lista tekstów odpowiadających danym
-        self.max_timesteps = 260
+        self.max_timesteps = 420
         self.realData = []
 
         # Wczytanie tekstów z pliku

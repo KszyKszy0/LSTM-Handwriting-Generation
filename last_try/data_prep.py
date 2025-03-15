@@ -76,7 +76,7 @@ def parse_svg(file_path):
 
     return list(polylines)
 
-def adaptive_resample(stroke_data, min_distance=7.0):
+def adaptive_resample(stroke_data, min_distance=3.0):
     """
     Resample stroke data to reduce resolution while preserving character.
     
@@ -122,7 +122,7 @@ class HandwritingDataset(Dataset):
         """
         self.data = []  # Lista sekwencji (każda sekwencja to lista punktów)
         self.texts = []  # Lista tekstów odpowiadających danym
-        self.max_timesteps = 420
+        self.max_timesteps = 950
         self.realData = []
 
         # Wczytanie tekstów z pliku

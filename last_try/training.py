@@ -54,7 +54,7 @@ svg_files = [f"{folder_path}/" + file for file in os.listdir(folder_path) if fil
 dataset = data.HandwritingDataset(svg_files, files_content)
 # dataloader = data.DataLoader(dataset, batch_size=64, shuffle=True, collate_fn=data.handwriting_collate_fn)
 
-optimizer = optim.Adam(model.parameters(), lr=1e-3)
+optimizer = optim.Adam(model.parameters(), lr=5e-4)
 # optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
 # Split dataset into 90% training and 20% validation.
@@ -82,7 +82,7 @@ def load_dicts(path):
     global starter_epoch
     starter_epoch = checkpoint['epoch'] + 1
 
-load_dicts("kappa_models\epoch18_train0.8079_val0.3536.pth")
+# load_dicts("kappa_models/epoch154_train-2.9860_val-2.9017.pth")
 
 best_val_loss = float('inf')
 
@@ -111,7 +111,7 @@ for epoch in range(epochs):
         
         # Backward pass and optimization.
         loss.backward()
-        nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        # nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
         
         total_train_loss += loss.item()

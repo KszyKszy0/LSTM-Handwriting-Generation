@@ -75,8 +75,22 @@ class HandwritingRNN(nn.Module):
         h2 = torch.zeros(batch_size, self.hidden_dim, device=device)
         c2 = torch.zeros(batch_size, self.hidden_dim, device=device)
 
+
+        # Create a slightly more advanced initialization that's aware of text position
+        first_pos = 0.5  # Position attention near the first character
+        spread = 0.7     # How spread out the attention should be initially
+
+        # Generate positions for each mixture component centered on the first character
+        positions = torch.linspace(
+            first_pos - spread/2, 
+            first_pos + spread/2, 
+            self.window_mixtures
+        ).unsqueeze(0).expand(batch_size, -1)
+
+        prev_kappa = positions.to(device)
+
         # Initialize window mechanism variables.
-        prev_kappa = torch.zeros(batch_size, self.window_mixtures, device=device)
+        # prev_kappa = torch.zeros(batch_size, self.window_mixtures, device=device)
         # Window vector: weighted sum over the one-hot encoded text.
         window_vec = torch.zeros(batch_size, self.char_vocab_size, device=device)
         

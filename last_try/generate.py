@@ -256,7 +256,7 @@ def load_model_and_generate(model_path, text, seq_len=300, output_svg="output.sv
 # =========================
 # Example usage:
 # Uncomment and modify the following lines to load your model and generate handwriting.
-model_path = "last_models/best_model.pth"       # path to your saved model file
+model_path = "kappa_models/best_model.pth"       # path to your saved model file
 text_to_generate = "oczywiscie"
 # load_model_and_generate(model_path, text_to_generate, seq_len=80, output_svg="handwriting.svg", temperature=0.95)
 

@@ -18,7 +18,7 @@ window_mixtures = 10   # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
 
-MODEL_PATH = "last_models"
+MODEL_PATH = "kappa_models"
 
 # Instantiate the model
 model = model_def.HandwritingRNN(input_dim, hidden_dim, num_mixtures, char_vocab_size, window_mixtures)
@@ -54,7 +54,7 @@ svg_files = [f"{folder_path}/" + file for file in os.listdir(folder_path) if fil
 dataset = data.HandwritingDataset(svg_files, files_content)
 # dataloader = data.DataLoader(dataset, batch_size=64, shuffle=True, collate_fn=data.handwriting_collate_fn)
 
-optimizer = optim.Adam(model.parameters(), lr=5e-4)
+optimizer = optim.Adam(model.parameters(), lr=1e-3)
 # optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
 # Split dataset into 90% training and 20% validation.
@@ -73,7 +73,21 @@ val_loader = data.DataLoader(val_dataset, batch_size=64, shuffle=False, collate_
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3, verbose=True, min_lr=1e-7)
 
 starter_epoch = 0
+
+def load_dicts(path):
+    checkpoint = torch.load(path)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+    global starter_epoch
+    starter_epoch = checkpoint['epoch'] + 1
+
+load_dicts("kappa_models\epoch18_train0.8079_val0.3536.pth")
+
 best_val_loss = float('inf')
+
+
+lambda_kappa = 0.1
 
 for epoch in range(epochs):
     # ----- Training Phase -----
@@ -84,10 +98,16 @@ for epoch in range(epochs):
         optimizer.zero_grad()
         
         # Forward pass: compute MDN parameters for the input sequence.
-        mdn_params_seq = model(input_seq, text)  # shape: (B, T, 6*num_mixtures+1)
+        mdn_params_seq, kappas = model(input_seq, text)  # shape: (B, T, 6*num_mixtures+1)
         
         # Compute the training loss using our MDN loss function.
-        loss = model_def.mdn_loss(mdn_params_seq, target_seq, num_mixtures)
+        loss_mdn = model_def.mdn_loss(mdn_params_seq, target_seq, num_mixtures)
+
+        delta_kappa = kappas[:, 1:, :] - kappas[:, :-1, :]
+
+        kappa_penalty = lambda_kappa * torch.mean(delta_kappa)
+
+        loss = loss_mdn + kappa_penalty 
         
         # Backward pass and optimization.
         loss.backward()
@@ -97,8 +117,8 @@ for epoch in range(epochs):
         total_train_loss += loss.item()
 
         f = open("logi.txt", "a")
-        print(f"Batch [{i + 1}/{len(train_loader)}], Loss: {loss.item():.4f}")
-        f.write(f"Batch [{i + 1}/{len(train_loader)}], Loss: {loss.item():.4f}\n")
+        print(f"Batch [{i + 1}/{len(train_loader)}], Loss: {loss.item():.4f}, Kappa penalty: {kappa_penalty}")
+        f.write(f"Batch [{i + 1}/{len(train_loader)}], Loss: {loss.item():.4f}, Kappa penalty: {kappa_penalty}\n")
         f.close()
     
     avg_train_loss = total_train_loss / len(train_loader)
@@ -114,7 +134,7 @@ for epoch in range(epochs):
     with torch.no_grad():
         for i, (input_seq, target_seq, text) in enumerate(val_loader):
             # Forward pass: compute MDN parameters.
-            mdn_params_seq = model(input_seq, text)
+            mdn_params_seq, kappas_unused = model(input_seq, text)
             loss = model_def.mdn_loss(mdn_params_seq, target_seq, num_mixtures)
             total_val_loss += loss.item()
     

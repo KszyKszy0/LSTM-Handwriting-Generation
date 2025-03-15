@@ -81,6 +81,7 @@ class HandwritingRNN(nn.Module):
         window_vec = torch.zeros(batch_size, self.char_vocab_size, device=device)
         
         outputs = []  # Collect MDN outputs over time
+        kappa_list = []  # To store kappas at each time step.
 
         # Process each time step.
         for t in range(seq_len):
@@ -102,6 +103,7 @@ class HandwritingRNN(nn.Module):
             # Update kappa (monotonically increasing).
             kappa = prev_kappa + delta_kappa
             prev_kappa = kappa
+            kappa_list.append(kappa)
 
             # Compute the attention (phi) over text positions.
             u = torch.arange(0, max_text_len, device=device).float().view(1, 1, -1)  # (1,1,max_text_len)
@@ -125,7 +127,8 @@ class HandwritingRNN(nn.Module):
             outputs.append(mdn_params)
 
         mdn_params_seq = torch.stack(outputs, dim=1)  # (batch, seq_len, 6*num_mixtures+1)
-        return mdn_params_seq
+        kappas = torch.stack(kappa_list, dim=1)         # (batch, seq_len, window_mixtures)
+        return mdn_params_seq, kappas
 
     def generate_step(self, x_t, hidden1, hidden2, prev_kappa, window_vec, text_encoded):
         """

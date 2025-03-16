@@ -327,13 +327,16 @@ def coords_to_offsets(coords):
     offsets = np.concatenate([np.array([[0, 0, 1]]), offsets], axis=0)
     return offsets
 
-# folder_path = "output"
-# svg_files = ["output/" + file for file in os.listdir(folder_path) if file.endswith('.svg')]
-# dataset = HandwritingDataset(svg_files, "output/files.txt")
+# folder_path = "mwoutput"
+# svg_files = [f"{folder_path}/" + file for file in os.listdir(folder_path) if file.endswith('.svg')]
+# dataset = HandwritingDataset(svg_files, f"{folder_path}/files.txt")
 # dataloader = DataLoader(dataset, batch_size=16, shuffle=True, collate_fn=handwriting_collate_fn)
 
 # # getTextValue('witamZ Z',400,500)
-# for input_seq, target_seq, in dataloader:
+# for input_seq, target_seq, text in dataloader:
 #     print(input_seq.shape)
 #     print(target_seq.shape)
-
+#     print(input_seq[0])
+#     print(target_seq[0])
+#     print(text[0])
+#     input("asd")

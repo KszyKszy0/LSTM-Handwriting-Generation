@@ -275,6 +275,7 @@ text_to_generate = "oczywiscie"
 model = model_def.HandwritingRNN(input_dim, hidden_dim, num_mixtures, char_vocab_size, window_mixtures)
 checkpoint = torch.load(model_path, weights_only=True)
 model.load_state_dict(checkpoint['model_state_dict'])
+print(checkpoint['epoch'])
 model.eval()
 if model.char_to_idx is None:
         # Example vocabulary: letters and space.

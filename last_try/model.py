@@ -45,7 +45,7 @@ class HandwritingRNN(nn.Module):
         # MDN output layer: For each mixture component predict:
         #   pi, mu1, mu2, sigma1, sigma2, rho  (6 parameters per mixture)
         # plus one extra value for the pen (end-of-stroke) probability.
-        self.fc_mdn = nn.Linear(hidden_dim, 6 * num_mixtures + 1)
+        self.fc_mdn = nn.Linear(hidden_dim * 2, 6 * num_mixtures + 1)
 
         # The character dictionary will be set externally.
         self.char_to_idx = None
@@ -137,7 +137,9 @@ class HandwritingRNN(nn.Module):
             # -------------------------
             # MDN output: Predict mixture parameters from LSTM2's output.
             # -------------------------
-            mdn_params = self.fc_mdn(h2)  # shape: (batch, 6*num_mixtures+1)
+            mdn_input = torch.cat([h1, h2], dim=1)
+
+            mdn_params = self.fc_mdn(mdn_input)  # shape: (batch, 6*num_mixtures+1)
             outputs.append(mdn_params)
 
         mdn_params_seq = torch.stack(outputs, dim=1)  # (batch, seq_len, 6*num_mixtures+1)
@@ -194,7 +196,9 @@ class HandwritingRNN(nn.Module):
         h2, c2 = self.lstm2(lstm2_input, hidden2)
 
         # --- MDN Output ---
-        mdn_params = self.fc_mdn(h2)
+        mdn_input = torch.cat([h1, h2], dim=1)
+
+        mdn_params = self.fc_mdn(mdn_input)  # shape: (batch, 6*num_mixtures+1)
 
         return mdn_params, (h1, c1), (h2, c2), kappa, window_vec, phi
 

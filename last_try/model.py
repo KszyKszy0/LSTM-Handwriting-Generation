@@ -341,4 +341,4 @@ def mdn_loss(mdn_params_seq, target_seq, num_mixtures):
     loss = loss_mdn + loss_pen
 
     # Average loss over all time steps and the batch.
-    return torch.mean(loss)
+    return loss

@@ -18,7 +18,7 @@ window_mixtures = 10   # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
 
-MODEL_PATH = "kappa_models"
+MODEL_PATH = "masked_models"
 
 # Instantiate the model
 model = model_def.HandwritingRNN(input_dim, hidden_dim, num_mixtures, char_vocab_size, window_mixtures)
@@ -80,7 +80,7 @@ def load_dicts(path):
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
     global starter_epoch
-    starter_epoch = checkpoint['epoch'] + 1
+    starter_epoch = checkpoint['epoch']
 
 # load_dicts("kappa_models/epoch154_train-2.9860_val-2.9017.pth")
 
@@ -89,7 +89,7 @@ best_val_loss = float('inf')
 
 lambda_kappa = 0.1
 
-for epoch in range(epochs):
+for epoch in range(1,epochs):
     # ----- Training Phase -----
     model.train()
     total_train_loss = 0
@@ -97,21 +97,46 @@ for epoch in range(epochs):
     for i, (input_seq, target_seq, text) in enumerate(train_loader):
         optimizer.zero_grad()
         
-        # Forward pass: compute MDN parameters for the input sequence.
-        mdn_params_seq, kappas = model(input_seq, text)  # shape: (B, T, 6*num_mixtures+1)
+        # Create a mask that identifies only complete zero vectors [0,0,0]
+        # This checks if all values in each position are exactly zero
+        padding_mask = ~torch.all(target_seq == 0, dim=2)  # Shape: [batch_size, seq_length]
+        # The ~ operator inverts the mask, so True means "not padding" (i.e., keep this data point)
         
-        # Compute the training loss using our MDN loss function.
-        loss_mdn = model_def.mdn_loss(mdn_params_seq, target_seq, num_mixtures)
-
+        # Forward pass: compute MDN parameters for the input sequence
+        mdn_params_seq, kappas = model(input_seq, text)
+        
+        # Compute the unmasked MDN loss
+        batch_losses = model_def.mdn_loss(mdn_params_seq, target_seq, num_mixtures)
+        
+        # Apply the mask and compute the proper average loss
+        if batch_losses.dim() > padding_mask.dim():
+            # If batch_losses has an extra dimension, sum over it first
+            batch_losses = batch_losses.sum(dim=-1)
+        
+        # Apply the mask (set padded values to 0)
+        masked_losses = batch_losses * padding_mask.float()
+        
+        # Compute the masked average (sum of masked losses divided by count of non-padded elements)
+        num_non_padded = padding_mask.float().sum() + 1e-8  # Add small epsilon to avoid division by zero
+        loss_mdn = masked_losses.sum() / num_non_padded
+        
+        # Compute kappa penalty with proper masking
         delta_kappa = kappas[:, 1:, :] - kappas[:, :-1, :]
-
-        kappa_penalty = lambda_kappa * torch.mean(delta_kappa)
-
-        loss = loss_mdn + kappa_penalty 
         
-        # Backward pass and optimization.
+        # For kappa penalty, only consider positions where both current and next step are non-padded
+        kappa_mask = padding_mask[:, :-1] & padding_mask[:, 1:]
+        masked_delta_kappa = delta_kappa * kappa_mask.unsqueeze(-1).float()
+        
+        # Compute the masked kappa penalty
+        num_kappa_elements = kappa_mask.float().sum() + 1e-8
+        kappa_penalty = lambda_kappa * (masked_delta_kappa.sum() / num_kappa_elements)
+        
+        # Total loss
+        loss = loss_mdn + kappa_penalty
+        
+        # Backward pass and optimization
         loss.backward()
-        # nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
         
         total_train_loss += loss.item()
@@ -124,8 +149,8 @@ for epoch in range(epochs):
     avg_train_loss = total_train_loss / len(train_loader)
 
     f = open("logi.txt", "a")
-    print(f"Epoch [{starter_epoch + epoch + 1}/{epochs}], Training Loss: {avg_train_loss:.4f}")
-    f.write(f"Epoch [{starter_epoch + epoch + 1}/{epochs}], Training Loss: {avg_train_loss:.4f}\n")
+    print(f"Epoch [{starter_epoch + epoch}/{epochs}], Training Loss: {avg_train_loss:.4f}")
+    f.write(f"Epoch [{starter_epoch + epoch}/{epochs}], Training Loss: {avg_train_loss:.4f}\n")
     f.close()
 
     # ----- Validation Phase -----
@@ -133,16 +158,30 @@ for epoch in range(epochs):
     total_val_loss = 0
     with torch.no_grad():
         for i, (input_seq, target_seq, text) in enumerate(val_loader):
-            # Forward pass: compute MDN parameters.
+            # Create padding mask to identify only complete zero vectors
+            padding_mask = ~torch.all(target_seq == 0, dim=2)
+            
+            # Forward pass
             mdn_params_seq, kappas_unused = model(input_seq, text)
-            loss = model_def.mdn_loss(mdn_params_seq, target_seq, num_mixtures)
+            
+            # Compute unmasked loss with reduction='none'
+            batch_losses = model_def.mdn_loss(mdn_params_seq, target_seq, num_mixtures)
+            
+            # Apply mask and compute proper average
+            if batch_losses.dim() > padding_mask.dim():
+                batch_losses = batch_losses.sum(dim=-1)
+            
+            masked_losses = batch_losses * padding_mask.float()
+            num_non_padded = padding_mask.float().sum() + 1e-8
+            loss = masked_losses.sum() / num_non_padded
+            
             total_val_loss += loss.item()
     
     avg_val_loss = total_val_loss / len(val_loader)
 
     f = open("logi.txt", "a")
-    print(f"Epoch [{starter_epoch + epoch + 1}/{epochs}], Validation Loss: {avg_val_loss:.4f}")
-    f.write(f"Epoch [{starter_epoch + epoch + 1}/{epochs}], Validation Loss: {avg_val_loss:.4f}\n")
+    print(f"Epoch [{starter_epoch + epoch}/{epochs}], Validation Loss: {avg_val_loss:.4f}")
+    f.write(f"Epoch [{starter_epoch + epoch}/{epochs}], Validation Loss: {avg_val_loss:.4f}\n")
     f.close()
     
     # Step the scheduler based on validation loss
@@ -155,7 +194,7 @@ for epoch in range(epochs):
             'scheduler_state_dict': scheduler.state_dict(),  # Also save scheduler state
             'epoch': starter_epoch + epoch,
             'val_loss': avg_val_loss,
-            }, MODEL_PATH + f"/epoch{starter_epoch + epoch+1}_train{avg_train_loss:.4f}_val{avg_val_loss:.4f}.pth")
+            }, MODEL_PATH + f"/epoch{starter_epoch + epoch}_train{avg_train_loss:.4f}_val{avg_val_loss:.4f}.pth")
     
     # Save best model separately
     if avg_val_loss < best_val_loss:

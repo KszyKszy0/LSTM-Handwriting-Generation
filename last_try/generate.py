@@ -130,6 +130,9 @@ def generate_handwriting_with_attention(model, text, seq_len=300, temperature=1.
         h2 = torch.zeros(batch_size, model.hidden_dim, device=device)
         c2 = torch.zeros(batch_size, model.hidden_dim, device=device)
         hidden2 = (h2, c2)
+        h3 = torch.zeros(batch_size, model.hidden_dim, device=device)
+        c3 = torch.zeros(batch_size, model.hidden_dim, device=device)
+        hidden3 = (h3, c3)
 
         # Create a slightly more advanced initialization that's aware of text position
         first_pos = 0.5  # Position attention near the first character
@@ -151,8 +154,8 @@ def generate_handwriting_with_attention(model, text, seq_len=300, temperature=1.
 
         count = 0
         for t in range(seq_len):
-            mdn_params, hidden1, hidden2, prev_kappa, window_vec, phi = model.generate_step(
-                current_input, hidden1, hidden2, prev_kappa, window_vec, text_encoded)
+            mdn_params, hidden1, hidden2, hidden3, prev_kappa, window_vec, phi = model.generate_step(
+                current_input, hidden1, hidden2, hidden3, prev_kappa, window_vec, text_encoded)
             x_sample, y_sample, pen_sample = sample_from_mdn(mdn_params, model.num_mixtures, temperature)
             current_input = torch.tensor([[x_sample, y_sample, pen_sample]], device=device, dtype=torch.float32)
             strokes.append((x_sample, y_sample, pen_sample))
@@ -268,8 +271,8 @@ def load_model_and_generate(model_path, text, seq_len=300, output_svg="output.sv
 # =========================
 # Example usage:
 # Uncomment and modify the following lines to load your model and generate handwriting.
-model_path = "kappa_models/best_model.pth"       # path to your saved model file
-text_to_generate = "oczywiscie"
+model_path = "adam_after\epoch652_train1.9823_val1.8657.pth"       # path to your saved model file
+text_to_generate = "test naszych zmagan"
 # load_model_and_generate(model_path, text_to_generate, seq_len=80, output_svg="handwriting.svg", temperature=0.95)
 
 model = model_def.HandwritingRNN(input_dim, hidden_dim, num_mixtures, char_vocab_size, window_mixtures)
@@ -281,6 +284,6 @@ if model.char_to_idx is None:
         # Example vocabulary: letters and space.
         vocab = model_def.vocab
         model.char_to_idx = {c: i for i, c in enumerate(vocab)}
-strokes, attentions = generate_handwriting_with_attention(model, text_to_generate, seq_len=1000, temperature=0.8)
+strokes, attentions = generate_handwriting_with_attention(model, text_to_generate, seq_len=2000, temperature=0.8)
 save_strokes_to_svg(strokes, "handwriting.svg")
 plot_attention(attentions, text_to_generate)

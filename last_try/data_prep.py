@@ -76,7 +76,7 @@ def parse_svg(file_path):
 
     return list(polylines)
 
-def adaptive_resample(stroke_data, min_distance=3.0):
+def adaptive_resample(stroke_data, min_distance=4.0):
     """
     Resample stroke data to reduce resolution while preserving character.
     
@@ -113,7 +113,7 @@ def adaptive_resample(stroke_data, min_distance=3.0):
     2- wymiar punkt czyli np. [2][4] - oznacza 3 plik 5 punkt
 '''
 class HandwritingDataset(Dataset):
-    def __init__(self, svg_files, text_file):
+    def __init__(self, svg_files, text_files):
         """
         Dataset dla uczenia modelu na danych ręcznego pisma w formacie SVG.
         Args:
@@ -121,27 +121,51 @@ class HandwritingDataset(Dataset):
             text_file (str): Ścieżka do pliku tekstowego zawierającego teksty (jedna linia na plik SVG).
         """
         self.data = []  # Lista sekwencji (każda sekwencja to lista punktów)
-        self.texts = []  # Lista tekstów odpowiadających danym
-        self.max_timesteps = 950
+        # self.texts = []  # Lista tekstów odpowiadających danym
+        self.max_timesteps = 720
         self.realData = []
 
-        # Wczytanie tekstów z pliku
-        with open(text_file, 'r', encoding='windows-1252') as f:
-            lines = f.readlines()
-            self.texts = [line.strip() for line in lines]
+        all_texts = []
 
+
+        for text_file in text_files:
+            try:
+                with open(text_file, 'r', encoding='windows-1252') as f:
+                    lines = f.readlines()
+                    texts = [line.strip() for line in lines]
+                    all_texts.extend(texts)
+            except Exception as e:
+                print(f"Błąd wczytywania pliku {text_file}: {e}")
+        
         # Sprawdzenie, czy liczba tekstów zgadza się z liczbą plików SVG
-        if len(self.texts) != len(svg_files):
-            raise ValueError("Liczba tekstów w pliku nie zgadza się z liczbą plików SVG.")
-
-
+        if len(all_texts) != len(svg_files):
+            raise ValueError("Liczba tekstów w plikach nie zgadza się z liczbą plików SVG.")
+        
         # Wczytanie danych z plików SVG
-        for file, text in zip(svg_files, self.texts):
+        for file, text in zip(svg_files, all_texts):
             # Parsowanie pliku SVG na punkty
             polylines = parse_svg(file)
-
+            
             # Dodanie całej sekwencji z pliku oraz odpowiadającego tekstu
             self.data.append((polylines, text))
+
+        # Wczytanie tekstów z pliku
+        # with open(text_file, 'r', encoding='windows-1252') as f:
+        #     lines = f.readlines()
+        #     self.texts = [line.strip() for line in lines]
+
+        # # Sprawdzenie, czy liczba tekstów zgadza się z liczbą plików SVG
+        # if len(self.texts) != len(svg_files):
+        #     raise ValueError("Liczba tekstów w pliku nie zgadza się z liczbą plików SVG.")
+
+
+        # # Wczytanie danych z plików SVG
+        # for file, text in zip(svg_files, self.texts):
+        #     # Parsowanie pliku SVG na punkty
+        #     polylines = parse_svg(file)
+
+        #     # Dodanie całej sekwencji z pliku oraz odpowiadającego tekstu
+        #     self.data.append((polylines, text))
         
         for i in range(len(self.data)):
             polyline = self.data[i][0]

@@ -18,7 +18,7 @@ window_mixtures = 10   # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
 
-MODEL_PATH = "masked_models"
+MODEL_PATH = "adam_after"
 
 # Instantiate the model
 model = model_def.HandwritingRNN(input_dim, hidden_dim, num_mixtures, char_vocab_size, window_mixtures)
@@ -45,21 +45,46 @@ model.char_to_idx = model_def.char_to_idx
 # Expected shape: (batch_size, seq_len, 6*num_mixtures + 1)
 
 
-# Ścieżka do folderu
-folder_path = "mwoutput"
-files_content = f"{folder_path}/files.txt"
-# Lista nazw plików z rozszerzeniem .svg
-svg_files = [f"{folder_path}/" + file for file in os.listdir(folder_path) if file.endswith('.svg')]
 
-dataset = data.HandwritingDataset(svg_files, files_content)
+# Obsługa wielu folderów
+folder_paths = ["mwoutput", "output"]  # Lista ścieżek do folderów
+
+# Funkcja do wczytywania danych z wielu folderów
+def load_from_folders(folder_paths):
+    all_svg_files = []
+    all_text_files = []
+    
+    for folder_path in folder_paths:
+        # Ścieżka do pliku z tekstami dla bieżącego folderu
+        files_content = f"{folder_path}/files.txt"
+        
+        # Lista nazw plików z rozszerzeniem .svg z bieżącego folderu
+        svg_files = [f"{folder_path}/" + file for file in os.listdir(folder_path) if file.endswith('.svg')]
+        
+        all_svg_files.extend(svg_files)
+        all_text_files.append(files_content)
+    
+    return all_svg_files, all_text_files
+
+# Wczytanie danych z wielu folderów
+svg_files, text_files = load_from_folders(folder_paths)
+
+
+# Ścieżka do folderu
+# folder_path = "mwoutput"
+# files_content = f"{folder_path}/files.txt"
+# Lista nazw plików z rozszerzeniem .svg
+# svg_files = [f"{folder_path}/" + file for file in os.listdir(folder_path) if file.endswith('.svg')]
+
+dataset = data.HandwritingDataset(svg_files, text_files)
 # dataloader = data.DataLoader(dataset, batch_size=64, shuffle=True, collate_fn=data.handwriting_collate_fn)
 
-optimizer = optim.AdamW(model.parameters(), lr=5e-4)
+optimizer = optim.Adam(model.parameters(), lr=1e-4)
 # optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
 # Split dataset into 90% training and 20% validation.
 dataset_size = len(dataset)
-train_size = int(0.9 * dataset_size)
+train_size = int(0.95 * dataset_size)
 val_size = dataset_size - train_size
 train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 print("Train size: ",train_size)
@@ -70,7 +95,7 @@ train_loader = data.DataLoader(train_dataset, batch_size=64, shuffle=True, colla
 val_loader = data.DataLoader(val_dataset, batch_size=64, shuffle=False, collate_fn=data.handwriting_collate_fn)
 
 # Add learning rate scheduler 
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3, verbose=True, min_lr=1e-7)
+# scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3, verbose=True, min_lr=1e-7)
 
 starter_epoch = 0
 
@@ -78,11 +103,11 @@ def load_dicts(path):
     checkpoint = torch.load(path)
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+    # scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
     global starter_epoch
     starter_epoch = checkpoint['epoch']
 
-# load_dicts("kappa_models/epoch154_train-2.9860_val-2.9017.pth")
+# load_dicts("rework/epoch163_train1.1137_val1.0270.pth")
 
 best_val_loss = float('inf')
 
@@ -121,29 +146,31 @@ for epoch in range(1,epochs):
         loss_mdn = masked_losses.sum() / num_non_padded
         
         # Compute kappa penalty with proper masking
-        delta_kappa = kappas[:, 1:, :] - kappas[:, :-1, :]
+        # delta_kappa = kappas[:, 1:, :] - kappas[:, :-1, :]
         
         # For kappa penalty, only consider positions where both current and next step are non-padded
-        kappa_mask = padding_mask[:, :-1] & padding_mask[:, 1:]
-        masked_delta_kappa = delta_kappa * kappa_mask.unsqueeze(-1).float()
+        # kappa_mask = padding_mask[:, :-1] & padding_mask[:, 1:]
+        # masked_delta_kappa = delta_kappa * kappa_mask.unsqueeze(-1).float()
         
         # Compute the masked kappa penalty
-        num_kappa_elements = kappa_mask.float().sum() + 1e-8
-        kappa_penalty = lambda_kappa * (masked_delta_kappa.sum() / num_kappa_elements)
+        # num_kappa_elements = kappa_mask.float().sum() + 1e-8
+        # kappa_penalty = lambda_kappa * (masked_delta_kappa.sum() / num_kappa_elements)
         
         # Total loss
-        loss = loss_mdn + kappa_penalty
+        # loss = loss_mdn + kappa_penalty
+
+        loss = loss_mdn
         
         # Backward pass and optimization
         loss.backward()
-        nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        nn.utils.clip_grad_norm_(model.parameters(), max_norm=10)
         optimizer.step()
         
         total_train_loss += loss.item()
 
         f = open("logi.txt", "a")
-        print(f"Batch [{i + 1}/{len(train_loader)}], Loss: {loss.item():.4f}, Kappa penalty: {kappa_penalty}")
-        f.write(f"Batch [{i + 1}/{len(train_loader)}], Loss: {loss.item():.4f}, Kappa penalty: {kappa_penalty}\n")
+        print(f"Batch [{i + 1}/{len(train_loader)}], Loss: {loss.item():.4f}")
+        f.write(f"Batch [{i + 1}/{len(train_loader)}], Loss: {loss.item():.4f}\n")
         f.close()
     
     avg_train_loss = total_train_loss / len(train_loader)
@@ -185,13 +212,13 @@ for epoch in range(1,epochs):
     f.close()
     
     # Step the scheduler based on validation loss
-    scheduler.step(avg_val_loss)
+    # scheduler.step(avg_val_loss)
     
     # Save model checkpoint including both training and validation loss.
     torch.save({
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
-            'scheduler_state_dict': scheduler.state_dict(),  # Also save scheduler state
+            # 'scheduler_state_dict': scheduler.state_dict(),  # Also save scheduler state
             'epoch': starter_epoch + epoch,
             'val_loss': avg_val_loss,
             }, MODEL_PATH + f"/epoch{starter_epoch + epoch}_train{avg_train_loss:.4f}_val{avg_val_loss:.4f}.pth")
@@ -202,7 +229,7 @@ for epoch in range(1,epochs):
         torch.save({
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-                'scheduler_state_dict': scheduler.state_dict(),
+                # 'scheduler_state_dict': scheduler.state_dict(),
                 'epoch': starter_epoch + epoch,
                 'val_loss': avg_val_loss,
                 }, MODEL_PATH + f"/best_model.pth")

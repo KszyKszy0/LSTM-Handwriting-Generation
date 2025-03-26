@@ -22,7 +22,7 @@ def extract_model_info(filename):
 
 def main():
     # Path to the directory containing model files
-    models_dir = "kappa_models"
+    models_dir = "adam_after"
     
     # Output CSV file
     output_csv = "model_metrics.csv"

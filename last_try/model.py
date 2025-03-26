@@ -42,10 +42,13 @@ class HandwritingRNN(nn.Module):
         # LSTM2: Processes the concatenation of LSTM1's output and the updated window vector.
         self.lstm2 = nn.LSTMCell(hidden_dim + char_vocab_size + input_dim, hidden_dim)
 
+        # LSTM3: Processes the output of LSTM2.
+        self.lstm3 = nn.LSTMCell(hidden_dim, hidden_dim)
+
         # MDN output layer: For each mixture component predict:
         #   pi, mu1, mu2, sigma1, sigma2, rho  (6 parameters per mixture)
         # plus one extra value for the pen (end-of-stroke) probability.
-        self.fc_mdn = nn.Linear(hidden_dim * 2, 6 * num_mixtures + 1)
+        self.fc_mdn = nn.Linear(hidden_dim, 6 * num_mixtures + 1)
 
         # The character dictionary will be set externally.
         self.char_to_idx = None
@@ -74,6 +77,8 @@ class HandwritingRNN(nn.Module):
         c1 = torch.zeros(batch_size, self.hidden_dim, device=device)
         h2 = torch.zeros(batch_size, self.hidden_dim, device=device)
         c2 = torch.zeros(batch_size, self.hidden_dim, device=device)
+        h3 = torch.zeros(batch_size, self.hidden_dim, device=device)
+        c3 = torch.zeros(batch_size, self.hidden_dim, device=device)
 
 
         # Create a slightly more advanced initialization that's aware of text position
@@ -133,20 +138,20 @@ class HandwritingRNN(nn.Module):
             # -------------------------
             lstm2_input = torch.cat([h1, window_vec, x_t], dim=1)
             h2, c2 = self.lstm2(lstm2_input, (h2, c2))
-            
-            # -------------------------
-            # MDN output: Predict mixture parameters from LSTM2's output.
-            # -------------------------
-            mdn_input = torch.cat([h1, h2], dim=1)
 
-            mdn_params = self.fc_mdn(mdn_input)  # shape: (batch, 6*num_mixtures+1)
+            # -------------------------
+            # LSTM3: Process the LSTM2 output.
+            # -------------------------
+            h3, c3 = self.lstm3(h2, (h3, c3))
+
+            mdn_params = self.fc_mdn(h3)  # shape: (batch, 6*num_mixtures+1)
             outputs.append(mdn_params)
 
         mdn_params_seq = torch.stack(outputs, dim=1)  # (batch, seq_len, 6*num_mixtures+1)
         kappas = torch.stack(kappa_list, dim=1)         # (batch, seq_len, window_mixtures)
         return mdn_params_seq, kappas
 
-    def generate_step(self, x_t, hidden1, hidden2, prev_kappa, window_vec, text_encoded):
+    def generate_step(self, x_t, hidden1, hidden2, hidden3, prev_kappa, window_vec, text_encoded):
         """
         Generation step that processes one time step and returns attention weights.
         
@@ -195,12 +200,13 @@ class HandwritingRNN(nn.Module):
         lstm2_input = torch.cat([h1, window_vec, x_t], dim=1)
         h2, c2 = self.lstm2(lstm2_input, hidden2)
 
+        # --- LSTM3 Update ---
+        h3, c3 = self.lstm3(h2, hidden3)
+
         # --- MDN Output ---
-        mdn_input = torch.cat([h1, h2], dim=1)
+        mdn_params = self.fc_mdn(h3)  # shape: (batch, 6*num_mixtures+1)
 
-        mdn_params = self.fc_mdn(mdn_input)  # shape: (batch, 6*num_mixtures+1)
-
-        return mdn_params, (h1, c1), (h2, c2), kappa, window_vec, phi
+        return mdn_params, (h1, c1), (h2, c2), (h3, c3), kappa, window_vec, phi
 
     def encode_text_batch(self, text_batch):
         """

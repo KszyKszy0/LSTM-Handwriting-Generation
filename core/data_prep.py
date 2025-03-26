@@ -9,11 +9,6 @@ import torch.optim as optim
 import os
 from torch.nn.utils.rnn import pad_sequence
 
-
-alphabet = { ' ': 0,'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5, 'f': 6, 'g': 7, 'h': 8, 'i': 9, 'j': 10, 'k': 11, 'l': 12, 'm': 13, 'n': 14, 'o': 15, 'p': 16, 'q': 17, 'r': 18, 's': 19, 't': 20, 'u': 21, 'v': 22, 'w': 23, 'x': 24, 'y': 25, 'z': 26,
-            'A': 27, 'B': 28, 'C': 29, 'D': 30, 'E': 31, 'F': 32, 'G': 33, 'H': 34, 'I': 35, 'J': 36, 'K': 37, 'L': 38, 'M': 39, 'N': 40, 'O': 41, 'P': 42, 'Q': 43, 'R': 44, 'S': 45, 'T': 46, 'U': 47, 'V': 48, 'W': 49, 'X': 50, 'Y': 51, 'Z': 52
-}
-
 '''
 
         Format danych
@@ -27,6 +22,8 @@ alphabet = { ' ': 0,'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5, 'f': 6, 'g': 7, 'h':
         [a][1] - tekst
 
 '''
+
+maximal = 0
 # Funkcja do wczytania i sparsowania pliku SVG
 def parse_svg(file_path):
     """
@@ -46,9 +43,12 @@ def parse_svg(file_path):
         if points_str:
             # Zamień punkty na listę par współrzędnych
             points = []
+            i = 0
             for pair in points_str.split():
+
                 x, y = map(float, pair.split(','))
                 points.append([x, y, 0])  # Długopis pisze
+                i += 1
 
             # Dodaj stan "w powietrzu" po zakończeniu polyline
             if points:
@@ -58,11 +58,48 @@ def parse_svg(file_path):
             polylines.extend(points)
 
 
-    polylines = np.array(polylines)
+    polylines = adaptive_resample(polylines)
 
+    global maximal
+    if maximal < len(polylines):
+        maximal = len(polylines)
+        print("Max: ",maximal)
+
+    polylines = np.array(polylines)
+    
     polylines = coords_to_offsets(polylines)
 
     return list(polylines)
+
+def adaptive_resample(stroke_data, min_distance=4.0):
+    """
+    Resample stroke data to reduce resolution while preserving character.
+    
+    Args:
+        stroke_data: Original high-resolution stroke data (x, y, pen_state)
+        min_distance: Minimum Euclidean distance between consecutive points
+        
+    Returns:
+        Resampled stroke data with reduced point density
+    """
+    resampled = [stroke_data[0]]  # Always keep the first point
+    last_point = stroke_data[0]
+    
+    for point in stroke_data[1:]:
+        # Always keep pen-up events regardless of distance
+        if point[2] != last_point[2]:
+            resampled.append(point)
+            last_point = point
+            continue
+            
+        # Calculate Euclidean distance
+        distance = ((point[0] - last_point[0])**2 + (point[1] - last_point[1])**2)**0.5
+        
+        if distance >= min_distance:
+            resampled.append(point)
+            last_point = point
+    
+    return resampled
 
 
 '''
@@ -71,7 +108,7 @@ def parse_svg(file_path):
     2- wymiar punkt czyli np. [2][4] - oznacza 3 plik 5 punkt
 '''
 class HandwritingDataset(Dataset):
-    def __init__(self, svg_files, text_file):
+    def __init__(self, svg_files, text_files):
         """
         Dataset dla uczenia modelu na danych ręcznego pisma w formacie SVG.
         Args:
@@ -79,29 +116,34 @@ class HandwritingDataset(Dataset):
             text_file (str): Ścieżka do pliku tekstowego zawierającego teksty (jedna linia na plik SVG).
         """
         self.data = []  # Lista sekwencji (każda sekwencja to lista punktów)
-        self.texts = []  # Lista tekstów odpowiadających danym
-        self.max_timesteps = 2000
+        # self.texts = []  # Lista tekstów odpowiadających danym
+        self.max_timesteps = 720
         self.realData = []
 
-        # Wczytanie tekstów z pliku
-        with open(text_file, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-            self.texts = [line.strip() for line in lines]
+        all_texts = []
 
+
+        for text_file in text_files:
+            try:
+                with open(text_file, 'r', encoding='windows-1252') as f:
+                    lines = f.readlines()
+                    texts = [line.strip() for line in lines]
+                    all_texts.extend(texts)
+            except Exception as e:
+                print(f"Błąd wczytywania pliku {text_file}: {e}")
+        
         # Sprawdzenie, czy liczba tekstów zgadza się z liczbą plików SVG
-        if len(self.texts) != len(svg_files):
-            raise ValueError("Liczba tekstów w pliku nie zgadza się z liczbą plików SVG.")
-
-
+        if len(all_texts) != len(svg_files):
+            raise ValueError("Liczba tekstów w plikach nie zgadza się z liczbą plików SVG.")
+        
         # Wczytanie danych z plików SVG
-        for file, text in zip(svg_files, self.texts):
+        for file, text in zip(svg_files, all_texts):
             # Parsowanie pliku SVG na punkty
             polylines = parse_svg(file)
-
+            
             # Dodanie całej sekwencji z pliku oraz odpowiadającego tekstu
             self.data.append((polylines, text))
-
-
+        
         for i in range(len(self.data)):
             polyline = self.data[i][0]
             padded_polyline = self.pad_sequence(polyline, self.max_timesteps)
@@ -180,31 +222,6 @@ class HandwritingDataset(Dataset):
 
     def __getitem__(self, idx):
         return self.realData[idx][0], self.realData[idx][1], self.realData[idx][2]
-
-
-def getTextValue(text, timeStep, length):
-    valueMap = np.zeros(len(alphabet))
-
-    I = len(text)
-
-    for i, c in enumerate(text):
-        idx = alphabet[c]
-        # print(i,idx)
-
-        # licznik = i/I * length - timeStep
-        # mianownik = 1/I * length
-
-        # value = 1 - np.abs(licznik/mianownik)
-
-        # value = max(0,value)
-        # # print(value)
-
-        # if value > valueMap[idx]:
-        #     valueMap[idx] = value
-        valueMap[idx] = 1
-
-    # print(valueMap)
-    return valueMap
 
 def handwriting_collate_fn(batch):
     """
@@ -285,14 +302,3 @@ def coords_to_offsets(coords):
     offsets = np.concatenate([coords[1:, :2] - coords[:-1, :2], coords[1:, 2:3]], axis=1)
     offsets = np.concatenate([np.array([[0, 0, 1]]), offsets], axis=0)
     return offsets
-
-# folder_path = "output"
-# svg_files = ["output/" + file for file in os.listdir(folder_path) if file.endswith('.svg')]
-# dataset = HandwritingDataset(svg_files, "output/files.txt")
-# dataloader = DataLoader(dataset, batch_size=16, shuffle=True, collate_fn=handwriting_collate_fn)
-
-# # getTextValue('witamZ Z',400,500)
-# for input_seq, target_seq, in dataloader:
-#     print(input_seq.shape)
-#     print(target_seq.shape)
-

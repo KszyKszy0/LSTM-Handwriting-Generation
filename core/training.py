@@ -5,12 +5,38 @@ import os
 import torch.optim as optim
 import torch.nn as nn
 from torch.utils.data import random_split
+import argparse
+
+# =========================
+# 2. Args
+# =========================
+
+parser = argparse.ArgumentParser(description='Optional app description')
+
+parser.add_argument('lr', type=float,
+                    help='Learning rate parameter')
+
+parser.add_argument('optim', type=str,
+                    help='adam or rms')
+
+parser.add_argument('savefile', type=str,
+                    help='checkpoint save file')
+
+parser.add_argument('--opt_checkpoint', type=str,
+                    help='checkpoint to load')
+
+args = parser.parse_args()
+
 
 # =========================
 # 3. Example Usage
 # =========================
 
 # Hyperparameters
+
+MODEL_PATH = args.savefile
+LEARNING_RATE = args.lr
+
 input_dim = 3          # (x, y, pen state)
 hidden_dim = 400       # hidden state size
 num_mixtures = 20      # number of Gaussian mixtures in the MDN output
@@ -18,13 +44,50 @@ window_mixtures = 10   # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
 
-MODEL_PATH = "models/adam"
-
 # Instantiate the model
 model = model_def.HandwritingRNN(input_dim, hidden_dim, num_mixtures, char_vocab_size, window_mixtures)
 
 # Assign the character dictionary to the model for use in text encoding.
 model.char_to_idx = model_def.char_to_idx
+
+if args.optim == 'adam':
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    print('Using adam optimizer with ',LEARNING_RATE)
+    f = open("logi.txt", "a")
+    f.write(f"Using adam optimizer with {LEARNING_RATE}\n")
+    f.close()
+
+if args.optim == 'rms':
+    optimizer = optim.RMSprop(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
+    print('Using rmsprop optimizer with ',LEARNING_RATE)
+    f = open("logi.txt", "a")
+    f.write(f"Using rms optimizer with {LEARNING_RATE}\n")
+    f.close()
+
+starter_epoch = 0
+
+def load_dicts(path):
+    checkpoint = torch.load(path)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    # scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+    global starter_epoch
+    starter_epoch = checkpoint['epoch']
+
+    print('Loaded model from ',args.opt_checkpoint)
+    print('Epoch: ',starter_epoch)
+
+    f = open("logi.txt", "a")
+    f.write(f"Loaded model from {args.opt_checkpoint}\n")
+    f.write(f"Epoch: {starter_epoch}\n")
+    f.close()
+
+if args.opt_checkpoint is not None:
+    print("Model path: ", args.opt_checkpoint)
+    f = open("logi.txt", "a")
+    f.write(f"Model path:  {args.opt_checkpoint}\n")
+    f.close()
+    load_dicts(args.opt_checkpoint)
 
 # Obsługa wielu folderów
 folder_paths = ["data/mwoutput", "data/output"]  # Lista ścieżek do folderów
@@ -51,8 +114,6 @@ svg_files, text_files = load_from_folders(folder_paths)
 
 dataset = data.HandwritingDataset(svg_files, text_files)
 
-optimizer = optim.Adam(model.parameters(), lr=1e-4)
-
 # Split dataset into 90% training and 20% validation.
 dataset_size = len(dataset)
 train_size = int(0.95 * dataset_size)
@@ -62,21 +123,8 @@ print("Train size: ",train_size)
 print("Validation size: ",val_size)
 
 
-
 # Add learning rate scheduler 
 # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3, verbose=True, min_lr=1e-7)
-
-starter_epoch = 0
-
-def load_dicts(path):
-    checkpoint = torch.load(path)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    # scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-    global starter_epoch
-    starter_epoch = checkpoint['epoch']
-
-# load_dicts("rework/epoch163_train1.1137_val1.0270.pth")
 
 # Move model to GPU if available
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -91,7 +139,7 @@ best_val_loss = float('inf')
 
 lambda_kappa = 0.1
 
-for epoch in range(1,epochs):
+for epoch in range(starter_epoch + 1, epochs):
     # ----- Training Phase -----
     model.train()
     total_train_loss = 0
@@ -156,8 +204,8 @@ for epoch in range(1,epochs):
     avg_train_loss = total_train_loss / len(train_loader)
 
     f = open("logi.txt", "a")
-    print(f"Epoch [{starter_epoch + epoch}/{epochs}], Training Loss: {avg_train_loss:.4f}")
-    f.write(f"Epoch [{starter_epoch + epoch}/{epochs}], Training Loss: {avg_train_loss:.4f}\n")
+    print(f"Epoch [{epoch}/{epochs}], Training Loss: {avg_train_loss:.4f}")
+    f.write(f"Epoch [{epoch}/{epochs}], Training Loss: {avg_train_loss:.4f}\n")
     f.close()
 
     # ----- Validation Phase -----
@@ -191,8 +239,8 @@ for epoch in range(1,epochs):
     avg_val_loss = total_val_loss / len(val_loader)
 
     f = open("logi.txt", "a")
-    print(f"Epoch [{starter_epoch + epoch}/{epochs}], Validation Loss: {avg_val_loss:.4f}")
-    f.write(f"Epoch [{starter_epoch + epoch}/{epochs}], Validation Loss: {avg_val_loss:.4f}\n")
+    print(f"Epoch [{epoch}/{epochs}], Validation Loss: {avg_val_loss:.4f}")
+    f.write(f"Epoch [{epoch}/{epochs}], Validation Loss: {avg_val_loss:.4f}\n")
     f.close()
     
     # Step the scheduler based on validation loss
@@ -203,9 +251,9 @@ for epoch in range(1,epochs):
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
             # 'scheduler_state_dict': scheduler.state_dict(),  # Also save scheduler state
-            'epoch': starter_epoch + epoch,
+            'epoch': epoch,
             'val_loss': avg_val_loss,
-            }, MODEL_PATH + f"/epoch{starter_epoch + epoch}_train{avg_train_loss:.4f}_val{avg_val_loss:.4f}.pth")
+            }, MODEL_PATH + f"/epoch{epoch}_train{avg_train_loss:.4f}_val{avg_val_loss:.4f}.pth")
     
     # Save best model separately
     if avg_val_loss < best_val_loss:
@@ -214,6 +262,6 @@ for epoch in range(1,epochs):
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 # 'scheduler_state_dict': scheduler.state_dict(),
-                'epoch': starter_epoch + epoch,
+                'epoch': epoch,
                 'val_loss': avg_val_loss,
                 }, MODEL_PATH + f"/best_model.pth")

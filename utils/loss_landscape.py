@@ -2,9 +2,9 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-import last_try.model as model_def
-import last_try.data_prep as data
-import os 
+import core.model as model_def
+import core.data_prep as data
+import os
 
 # Assume you have a trained model
 # Hyperparameters
@@ -22,7 +22,7 @@ model = model_def.HandwritingRNN(input_dim, hidden_dim, num_mixtures, char_vocab
 # Assign the character dictionary to the model for use in text encoding.
 model.char_to_idx = model_def.char_to_idx
 
-model.load_state_dict(torch.load("rms_prop3\epoch496_train0.4465_val1.9521.pth")['model_state_dict'])  # Load trained weights
+model.load_state_dict(torch.load("models/adam_after/epoch653_train1.8220_val1.8720.pth")['model_state_dict'])  # Load trained weights
 
 # Obsługa wielu folderów
 folder_paths = ["mwoutput", "output"]  # Lista ścieżek do folderów
@@ -71,6 +71,11 @@ loss_values = np.zeros((len(alphas), len(betas)))
 small_dataset = torch.utils.data.Subset(dataset, indices=range(int(len(dataset) * 0.05)))
 small_dataloader = torch.utils.data.DataLoader(small_dataset, batch_size=32, shuffle=False, collate_fn=data.handwriting_collate_fn)
 
+# Move model to GPU if available
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+model.to(device)
+
 # Compute loss landscape
 for i, alpha in enumerate(alphas):
     for j, beta in enumerate(betas):
@@ -83,6 +88,8 @@ for i, alpha in enumerate(alphas):
         model.eval()
         with torch.no_grad():
             for z, (input_seq, target_seq, text) in enumerate(small_dataloader):
+                input_seq = input_seq.to(device)
+                target_seq = target_seq.to(device)
                 
                 padding_mask = ~torch.all(target_seq == 0, dim=2)  # Shape: [batch_size, seq_length]
 

@@ -12,18 +12,20 @@ from torch.nn.utils.rnn import pad_sequence
 '''
 
         Format danych
-        self.data[a][b]
 
-        self.data[a][0][0-1]
-        self.data[a][1]
+        [Used for preprocessing]
+        self.data[a][0] - sequence
+        self.data[a][1] - text
 
-        [a][0][0] - input, [a][0][1] - target
-
-        [a][1] - tekst
+        [Real use]
+        self.realData[a][0] - input sequence
+        self.realData[a][1] - target sequence
+        self.realData[a][2] - text
 
 '''
-
+# Variable for holding max length of sequence for padding purpose
 maximal = 0
+
 # Funkcja do wczytania i sparsowania pliku SVG
 def parse_svg(file_path):
     """

@@ -27,7 +27,7 @@ model = model_def.HandwritingRNN(input_dim, hidden_dim, num_mixtures, char_vocab
 model.char_to_idx = model_def.char_to_idx
 
 # Obsługa wielu folderów
-folder_paths = ["mwoutput", "output"]  # Lista ścieżek do folderów
+folder_paths = ["data/mwoutput", "data/output"]  # Lista ścieżek do folderów
 
 # Funkcja do wczytywania danych z wielu folderów
 def load_from_folders(folder_paths):
@@ -61,9 +61,7 @@ train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 print("Train size: ",train_size)
 print("Validation size: ",val_size)
 
-# Create DataLoaders for training and validation.
-train_loader = data.DataLoader(train_dataset, batch_size=64, shuffle=True, collate_fn=data.handwriting_collate_fn)
-val_loader = data.DataLoader(val_dataset, batch_size=64, shuffle=False, collate_fn=data.handwriting_collate_fn)
+
 
 # Add learning rate scheduler 
 # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3, verbose=True, min_lr=1e-7)
@@ -80,8 +78,16 @@ def load_dicts(path):
 
 # load_dicts("rework/epoch163_train1.1137_val1.0270.pth")
 
-best_val_loss = float('inf')
+# Move model to GPU if available
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+# Create DataLoaders for training and validation.
+train_loader = data.DataLoader(train_dataset, batch_size=64, shuffle=True, collate_fn=data.handwriting_collate_fn)
+val_loader = data.DataLoader(val_dataset, batch_size=64, shuffle=False, collate_fn=data.handwriting_collate_fn)
+
+model.to(device)
+
+best_val_loss = float('inf')
 
 lambda_kappa = 0.1
 
@@ -92,6 +98,9 @@ for epoch in range(1,epochs):
     
     for i, (input_seq, target_seq, text) in enumerate(train_loader):
         optimizer.zero_grad()
+
+        input_seq = input_seq.to(device)
+        target_seq = target_seq.to(device)
         
         # Create a mask that identifies only complete zero vectors [0,0,0]
         # This checks if all values in each position are exactly zero
@@ -156,6 +165,10 @@ for epoch in range(1,epochs):
     total_val_loss = 0
     with torch.no_grad():
         for i, (input_seq, target_seq, text) in enumerate(val_loader):
+
+            input_seq = input_seq.to(device)
+            target_seq = target_seq.to(device)
+
             # Create padding mask to identify only complete zero vectors
             padding_mask = ~torch.all(target_seq == 0, dim=2)
             

@@ -90,7 +90,7 @@ if args.opt_checkpoint is not None:
     load_dicts(args.opt_checkpoint)
 
 # Obsługa wielu folderów
-folder_paths = ["data/mwoutput", "data/output"]  # Lista ścieżek do folderów
+folder_paths = ["../data/mwoutput", "../data/output"]  # Lista ścieżek do folderów
 
 # Funkcja do wczytywania danych z wielu folderów
 def load_from_folders(folder_paths):
@@ -247,7 +247,8 @@ for epoch in range(starter_epoch + 1, epochs):
     # scheduler.step(avg_val_loss)
     
     # Save model checkpoint including both training and validation loss.
-    torch.save({
+    if(epoch % 10 == 0):
+        torch.save({
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
             # 'scheduler_state_dict': scheduler.state_dict(),  # Also save scheduler state
@@ -256,12 +257,12 @@ for epoch in range(starter_epoch + 1, epochs):
             }, MODEL_PATH + f"/epoch{epoch}_train{avg_train_loss:.4f}_val{avg_val_loss:.4f}.pth")
     
     # Save best model separately
-    if avg_val_loss < best_val_loss:
-        best_val_loss = avg_val_loss
-        torch.save({
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                # 'scheduler_state_dict': scheduler.state_dict(),
-                'epoch': epoch,
-                'val_loss': avg_val_loss,
-                }, MODEL_PATH + f"/best_model.pth")
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
+            torch.save({
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    # 'scheduler_state_dict': scheduler.state_dict(),
+                    'epoch': epoch,
+                    'val_loss': avg_val_loss,
+                    }, MODEL_PATH + f"/best_model.pth")

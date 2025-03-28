@@ -51,7 +51,8 @@ echo "Cloned the repo."
 cd /workspace/core
 
 # Run the script
-screen -dmS rnn python training.py
+screen -dmS adam python training.py 1e-4 'adam' 'models/adam'
+screen -dmS rms python training.py 1e-4 'rms' 'models/rms'
 
 echo "Startup script executed successfully."
 tail -f /dev/null

@@ -1,12 +1,8 @@
 models/*
-!models
+!models/.gitkeep
+/data/*
+!data/.gitkeep
+__pycache__
 /core/__pycache__
-/mwoutput
-/output
 model_metrics.csv
 logi.txt
-last_try/__pycache__/data_prep.cpython-312.pyc
-last_try/__pycache__/model.cpython-312.pyc
-/data/*
-!data
-__pycache__

@@ -35,7 +35,7 @@ args = parser.parse_args()
 
 # Hyperparameters
 
-MODEL_PATH = "../" + args.savefile
+MODEL_PATH = "../models/" + args.savefile
 LEARNING_RATE = args.lr
 
 input_dim = 3          # (x, y, pen state)
@@ -80,20 +80,21 @@ def load_dicts(path):
     global starter_epoch
     starter_epoch = checkpoint['epoch']
 
-    print('Loaded model from ',args.opt_checkpoint)
+    print('Loaded model from ',path)
     print('Epoch: ',starter_epoch)
 
     f = open("logi.txt", "a")
-    f.write(f"Loaded model from {args.opt_checkpoint}\n")
+    f.write(f"Loaded model from {path}\n")
     f.write(f"Epoch: {starter_epoch}\n")
     f.close()
 
 if args.opt_checkpoint is not None:
-    print("Model path: ", args.opt_checkpoint)
+    full_path = '../models/' + args.opt_checkpoint
+    print("Model path: ", full_path)
     f = open("logi.txt", "a")
-    f.write(f"Model path:  {args.opt_checkpoint}\n")
+    f.write(f"Model path:  {full_path}\n")
     f.close()
-    load_dicts(args.opt_checkpoint)
+    load_dicts(full_path)
 
 # Obsługa wielu folderów
 folder_paths = ["../data/mwoutput","../data/output"]  # Lista ścieżek do folderów
@@ -251,7 +252,7 @@ for epoch in range(starter_epoch + 1, epochs):
     # scheduler.step(avg_val_loss)
     
     # Save model checkpoint including both training and validation loss.
-    if(epoch % 5 == 0):
+    if(epoch % 1 == 0):
         torch.save({
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),

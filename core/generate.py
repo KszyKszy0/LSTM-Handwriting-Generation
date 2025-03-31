@@ -4,6 +4,18 @@ import numpy as np
 import svgwrite
 import model as model_def
 import matplotlib.pyplot as plt
+import argparse
+
+
+parser = argparse.ArgumentParser(description='Optional app description')
+
+parser.add_argument('model', type=str,
+                    help='Path to model')
+
+parser.add_argument('text', type=str,
+                    help='text to generate')
+
+args = parser.parse_args()
 
 # Hyperparameters
 input_dim = 3          # (x, y, pen state)
@@ -274,8 +286,8 @@ def load_model_and_generate(model_path, text, seq_len=300, output_svg="output.sv
 # =========================
 # Example usage:
 # Uncomment and modify the following lines to load your model and generate handwriting.
-model_path = "../models/adam/epoch10_train2.4662_val1.8868.pth"       # path to your saved model file
-text_to_generate = "test naszych zmagan"
+model_path = "../models/" + args.model       # path to your saved model file
+text_to_generate = args.text
 # load_model_and_generate(model_path, text_to_generate, seq_len=80, output_svg="handwriting.svg", temperature=0.95)
 
 model = model_def.HandwritingRNN(input_dim, hidden_dim, num_mixtures, char_vocab_size, window_mixtures)

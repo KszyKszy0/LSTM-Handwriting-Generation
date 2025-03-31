@@ -43,12 +43,12 @@ class HandwritingRNN(nn.Module):
         self.lstm2 = nn.LSTMCell(hidden_dim + char_vocab_size + input_dim, hidden_dim)
 
         # LSTM3: Processes the output of LSTM2.
-        self.lstm3 = nn.LSTMCell(hidden_dim, hidden_dim)
+        self.lstm3 = nn.LSTMCell(hidden_dim + char_vocab_size + input_dim, hidden_dim)
 
         # MDN output layer: For each mixture component predict:
         #   pi, mu1, mu2, sigma1, sigma2, rho  (6 parameters per mixture)
         # plus one extra value for the pen (end-of-stroke) probability.
-        self.fc_mdn = nn.Linear(hidden_dim, 6 * num_mixtures + 1)
+        self.fc_mdn = nn.Linear(hidden_dim * 3, 6 * num_mixtures + 1)
 
         # The character dictionary will be set externally.
         self.char_to_idx = None
@@ -82,20 +82,20 @@ class HandwritingRNN(nn.Module):
 
 
         # Create a slightly more advanced initialization that's aware of text position
-        first_pos = 0.5  # Position attention near the first character
-        spread = 0.7     # How spread out the attention should be initially
+        # first_pos = 0.5  # Position attention near the first character
+        # spread = 0.7     # How spread out the attention should be initially
 
-        # Generate positions for each mixture component centered on the first character
-        positions = torch.linspace(
-            first_pos - spread/2, 
-            first_pos + spread/2, 
-            self.window_mixtures
-        ).unsqueeze(0).expand(batch_size, -1)
+        # # Generate positions for each mixture component centered on the first character
+        # positions = torch.linspace(
+        #     first_pos - spread/2, 
+        #     first_pos + spread/2, 
+        #     self.window_mixtures
+        # ).unsqueeze(0).expand(batch_size, -1)
 
-        prev_kappa = positions.to(device)
+        # prev_kappa = positions.to(device)
 
         # Initialize window mechanism variables.
-        # prev_kappa = torch.zeros(batch_size, self.window_mixtures, device=device)
+        prev_kappa = torch.zeros(batch_size, self.window_mixtures, device=device)
         # Window vector: weighted sum over the one-hot encoded text.
         window_vec = torch.zeros(batch_size, self.char_vocab_size, device=device)
         
@@ -140,11 +140,13 @@ class HandwritingRNN(nn.Module):
             h2, c2 = self.lstm2(lstm2_input, (h2, c2))
 
             # -------------------------
-            # LSTM3: Process the LSTM2 output.
+            # LSTM3: Process the LSTM2 output concatenated with window vector and inputs
             # -------------------------
-            h3, c3 = self.lstm3(h2, (h3, c3))
+            lstm3_input = torch.cat([h2, window_vec, x_t], dim=1)
+            h3, c3 = self.lstm3(lstm3_input, (h3, c3))
 
-            mdn_params = self.fc_mdn(h3)  # shape: (batch, 6*num_mixtures+1)
+            mdn_input = torch.cat([h1, h2, h3], dim=1)
+            mdn_params = self.fc_mdn(mdn_input)  # shape: (batch, 6*num_mixtures+1)
             outputs.append(mdn_params)
 
         mdn_params_seq = torch.stack(outputs, dim=1)  # (batch, seq_len, 6*num_mixtures+1)

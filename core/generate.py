@@ -183,13 +183,14 @@ def plot_attention(attentions, text):
     attention_array = np.array(attentions)  # shape: (seq_len, max_text_len)
     plt.figure(figsize=(10, 6))
     # Transpose so x-axis is time and y-axis corresponds to text characters.
-    plt.imshow(attention_array.T, aspect="auto", origin="lower", interpolation="none")
+    plt.imshow(attention_array.T, aspect="auto", origin="upper", interpolation="none")
     plt.xlabel("Time step")
     plt.ylabel("Text Position")
     plt.title("Attention over Text")
     # Add character labels on the y-axis.
     plt.yticks(np.arange(len(text)), list(text))
     plt.colorbar(label="Attention Weight")
+    plt.savefig("plot.png")
     plt.show()
     
 
@@ -273,7 +274,7 @@ def load_model_and_generate(model_path, text, seq_len=300, output_svg="output.sv
 # =========================
 # Example usage:
 # Uncomment and modify the following lines to load your model and generate handwriting.
-model_path = "../models/adam/epoch652_train1.9823_val1.8657.pth"       # path to your saved model file
+model_path = "../models/adam/epoch10_train2.4662_val1.8868.pth"       # path to your saved model file
 text_to_generate = "test naszych zmagan"
 # load_model_and_generate(model_path, text_to_generate, seq_len=80, output_svg="handwriting.svg", temperature=0.95)
 

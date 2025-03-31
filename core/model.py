@@ -203,10 +203,12 @@ class HandwritingRNN(nn.Module):
         h2, c2 = self.lstm2(lstm2_input, hidden2)
 
         # --- LSTM3 Update ---
-        h3, c3 = self.lstm3(h2, hidden3)
+        lstm3_input = torch.cat([h2, window_vec, x_t], dim=1)
+        h3, c3 = self.lstm3(lstm3_input, hidden3)
 
         # --- MDN Output ---
-        mdn_params = self.fc_mdn(h3)  # shape: (batch, 6*num_mixtures+1)
+        mdn_input = torch.cat([h1, h2, h3], dim=1)
+        mdn_params = self.fc_mdn(mdn_input)  # shape: (batch, 6*num_mixtures+1)
 
         return mdn_params, (h1, c1), (h2, c2), (h3, c3), kappa, window_vec, phi
 

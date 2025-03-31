@@ -6,3 +6,5 @@ __pycache__
 /core/__pycache__
 model_metrics.csv
 logi.txt
+core/plot.png
+core/handwriting.svg

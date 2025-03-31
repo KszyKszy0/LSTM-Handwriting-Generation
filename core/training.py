@@ -35,7 +35,7 @@ args = parser.parse_args()
 
 # Hyperparameters
 
-MODEL_PATH = "../"+args.savefile
+MODEL_PATH = "../" + args.savefile
 LEARNING_RATE = args.lr
 
 input_dim = 3          # (x, y, pen state)
@@ -50,6 +50,11 @@ model = model_def.HandwritingRNN(input_dim, hidden_dim, num_mixtures, char_vocab
 
 # Assign the character dictionary to the model for use in text encoding.
 model.char_to_idx = model_def.char_to_idx
+
+# Move model to GPU if available
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+model.to(device)
 
 if args.optim == 'adam':
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
@@ -127,14 +132,9 @@ print("Validation size: ",val_size)
 # Add learning rate scheduler 
 # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3, verbose=True, min_lr=1e-7)
 
-# Move model to GPU if available
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 # Create DataLoaders for training and validation.
 train_loader = data.DataLoader(train_dataset, batch_size=64, shuffle=True, collate_fn=data.handwriting_collate_fn)
 val_loader = data.DataLoader(val_dataset, batch_size=64, shuffle=False, collate_fn=data.handwriting_collate_fn)
-
-model.to(device)
 
 best_val_loss = float('inf')
 

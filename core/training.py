@@ -251,7 +251,7 @@ for epoch in range(starter_epoch + 1, epochs):
     # scheduler.step(avg_val_loss)
     
     # Save model checkpoint including both training and validation loss.
-    if(epoch % 10 == 0):
+    if(epoch % 5 == 0):
         torch.save({
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),

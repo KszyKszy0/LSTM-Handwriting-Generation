@@ -12,7 +12,7 @@ echo "Executing startup script..."
 # Tworzenie pliku blokady
 touch "$LOCK_FILE"
 
-apt update && apt install -y screen
+apt update && apt install -y screen nano
 pip install -r requirements.txt
 
 echo "Installed dependencies."

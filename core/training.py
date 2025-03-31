@@ -2,6 +2,7 @@ import model as model_def
 import torch
 import data_prep as data
 import os
+import time
 import torch.optim as optim
 import torch.nn as nn
 from torch.utils.data import random_split
@@ -34,7 +35,7 @@ args = parser.parse_args()
 
 # Hyperparameters
 
-MODEL_PATH = args.savefile
+MODEL_PATH = "../"+args.savefile
 LEARNING_RATE = args.lr
 
 input_dim = 3          # (x, y, pen state)
@@ -90,7 +91,7 @@ if args.opt_checkpoint is not None:
     load_dicts(args.opt_checkpoint)
 
 # Obsługa wielu folderów
-folder_paths = ["../data/mwoutput", "../data/output"]  # Lista ścieżek do folderów
+folder_paths = ["../data/mwoutput","../data/output"]  # Lista ścieżek do folderów
 
 # Funkcja do wczytywania danych z wielu folderów
 def load_from_folders(folder_paths):
@@ -143,7 +144,7 @@ for epoch in range(starter_epoch + 1, epochs):
     # ----- Training Phase -----
     model.train()
     total_train_loss = 0
-    
+    start_time = time.time()
     for i, (input_seq, target_seq, text) in enumerate(train_loader):
         optimizer.zero_grad()
 
@@ -237,9 +238,12 @@ for epoch in range(starter_epoch + 1, epochs):
             total_val_loss += loss.item()
     
     avg_val_loss = total_val_loss / len(val_loader)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
 
     f = open("logi.txt", "a")
     print(f"Epoch [{epoch}/{epochs}], Validation Loss: {avg_val_loss:.4f}")
+    print(f"Time: {elapsed_time:.2f} seconds")
     f.write(f"Epoch [{epoch}/{epochs}], Validation Loss: {avg_val_loss:.4f}\n")
     f.close()
     

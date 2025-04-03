@@ -2,6 +2,14 @@ import os
 import re
 import csv
 import glob
+import argparse
+
+parser = argparse.ArgumentParser(description='Optional app description')
+
+parser.add_argument('folder', type=str,
+                    help='Learning rate parameter')
+
+args = parser.parse_args()
 
 def extract_model_info(filename):
     """
@@ -22,7 +30,7 @@ def extract_model_info(filename):
 
 def main():
     # Path to the directory containing model files
-    models_dir = "../models"
+    models_dir = "../models/" + args.folder
     
     # Output CSV file
     output_csv = "model_metrics.csv"

@@ -64,7 +64,7 @@ if args.optim == 'adam':
     f.close()
 
 if args.optim == 'rms':
-    optimizer = optim.RMSprop(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
+    optimizer = optim.RMSprop(model.parameters(), lr=LEARNING_RATE, weight_decay = 1e-5, centered=True)
     print('Using rmsprop optimizer with ',LEARNING_RATE)
     f = open("logi.txt", "a")
     f.write(f"Using rms optimizer with {LEARNING_RATE}\n")
@@ -158,7 +158,7 @@ for epoch in range(starter_epoch + 1, epochs):
         # The ~ operator inverts the mask, so True means "not padding" (i.e., keep this data point)
         
         # Forward pass: compute MDN parameters for the input sequence
-        mdn_params_seq, kappas = model(input_seq, text)
+        mdn_params_seq, kappas, window_params, phi = model(input_seq, text)
         
         # Compute the unmasked MDN loss
         batch_losses = model_def.mdn_loss(mdn_params_seq, target_seq, num_mixtures)
@@ -174,6 +174,22 @@ for epoch in range(starter_epoch + 1, epochs):
         # Compute the masked average (sum of masked losses divided by count of non-padded elements)
         num_non_padded = padding_mask.float().sum() + 1e-8  # Add small epsilon to avoid division by zero
         loss_mdn = masked_losses.sum() / num_non_padded
+
+        # Extract parameters before exponential
+        
+        log_kappa = window_params[:, :, :, 0]
+        log_alpha = window_params[:, :, :, 1]
+        log_beta = window_params[:, :, :, 2] 
+
+        # print(window_params.shape)
+        # print(padding_mask.shape)
+        # print(log_kappa.shape)
+
+        # kappa_penalty = log_kappa.sum() / num_non_padded
+        # alpha_penalty = log_alpha.sum() / num_non_padded
+        beta_penalty = log_beta.sum() / num_non_padded
+ 
+        loss_window = beta_penalty
         
         # Compute kappa penalty with proper masking
         # delta_kappa = kappas[:, 1:, :] - kappas[:, :-1, :]
@@ -189,7 +205,7 @@ for epoch in range(starter_epoch + 1, epochs):
         # Total loss
         # loss = loss_mdn + kappa_penalty
 
-        loss = loss_mdn
+        loss = loss_mdn + loss_window*1e-5
         
         # Backward pass and optimization
         loss.backward()
@@ -223,7 +239,7 @@ for epoch in range(starter_epoch + 1, epochs):
             padding_mask = ~torch.all(target_seq == 0, dim=2)
             
             # Forward pass
-            mdn_params_seq, kappas_unused = model(input_seq, text)
+            mdn_params_seq, kappas_unused, window_unused, phi_unused = model(input_seq, text)
             
             # Compute unmasked loss with reduction='none'
             batch_losses = model_def.mdn_loss(mdn_params_seq, target_seq, num_mixtures)

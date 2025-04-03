@@ -139,12 +139,18 @@ class HandwritingDataset(Dataset):
             raise ValueError("Liczba tekstów w plikach nie zgadza się z liczbą plików SVG.")
         
         # Wczytanie danych z plików SVG
+        data_counter = 0
         for file, text in zip(svg_files, all_texts):
             # Parsowanie pliku SVG na punkty
             polylines = parse_svg(file)
             
             # Dodanie całej sekwencji z pliku oraz odpowiadającego tekstu
             self.data.append((polylines, text))
+
+            data_counter += 1
+
+            # if data_counter % 500 == 0:
+            #     break
         
         for i in range(len(self.data)):
             polyline = self.data[i][0]

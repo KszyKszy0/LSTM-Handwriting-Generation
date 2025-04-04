@@ -128,8 +128,10 @@ def generate_handwriting_with_attention(model, text, seq_len=300, temperature=1.
       strokes: List of (x, y, pen_state) tuples.
       attentions: List (over time steps) of attention weight arrays (shape: max_text_len,).
     """
+    device = 'cpu'
     model.eval()
-    device = next(model.parameters()).device
+    model.to(device)
+    # device = next(model.parameters()).device
     with torch.no_grad():
         text_encoded, _ = model.encode_text_batch([text])
         text_encoded = text_encoded.to(device)
@@ -147,19 +149,19 @@ def generate_handwriting_with_attention(model, text, seq_len=300, temperature=1.
         hidden3 = (h3, c3)
 
         # # Create a slightly more advanced initialization that's aware of text position
-        first_pos = 0.5  # Position attention near the first character
-        spread = 0.7     # How spread out the attention should be initially
+        # first_pos = 0.5  # Position attention near the first character
+        # spread = 0.7     # How spread out the attention should be initially
 
-        # Generate positions for each mixture component centered on the first character
-        positions = torch.linspace(
-            first_pos - spread/2, 
-            first_pos + spread/2, 
-            model.window_mixtures
-        ).unsqueeze(0).expand(batch_size, -1)
+        # # Generate positions for each mixture component centered on the first character
+        # positions = torch.linspace(
+        #     first_pos - spread/2, 
+        #     first_pos + spread/2, 
+        #     model.window_mixtures
+        # ).unsqueeze(0).expand(batch_size, -1)
 
-        prev_kappa = positions.to(device)
+        # prev_kappa = positions.to(device)
 
-        # prev_kappa = torch.zeros(batch_size, model.window_mixtures, device=device)
+        prev_kappa = torch.zeros(batch_size, model.window_mixtures, device=device)
 
         window_vec = torch.zeros(batch_size, model.char_vocab_size, device=device)
         current_input = torch.zeros(batch_size, model.input_dim, device=device)
@@ -176,8 +178,11 @@ def generate_handwriting_with_attention(model, text, seq_len=300, temperature=1.
             # Save attention weights (convert to numpy array for plotting)
             attentions.append(phi.squeeze(0).cpu().numpy())
 
-            if phi[0, -1] > phi[0, :-1].max() and count >=20:
-                print(f"Stopping generation at time step {t} due to attention-based end-of-sequence condition.")
+            print(t," timestep: ",phi)
+            print(prev_kappa)
+
+            if phi[0, -1] > phi[0, :-1].max():
+                print(f"Stopping generation at time step {t+1} due to attention-based end-of-sequence condition.")
                 break
             
             count += 1

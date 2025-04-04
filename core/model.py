@@ -84,14 +84,16 @@ class HandwritingRNN(nn.Module):
       c3 = torch.zeros(batch_size, self.hidden_dim, device=device)
 
       # Initialize attention position
-      first_pos = 0.5  # Position attention near the first character
-      spread = 0.7     # How spread out the attention should be initially
-      positions = torch.linspace(
-          first_pos - spread/2, 
-          first_pos + spread/2, 
-          self.window_mixtures
-      ).unsqueeze(0).expand(batch_size, -1)
-      prev_kappa = positions.to(device)
+      # first_pos = 0.5  # Position attention near the first character
+      # spread = 0.7     # How spread out the attention should be initially
+      # positions = torch.linspace(
+      #     first_pos - spread/2, 
+      #     first_pos + spread/2, 
+      #     self.window_mixtures
+      # ).unsqueeze(0).expand(batch_size, -1)
+      # prev_kappa = positions.to(device)
+
+      prev_kappa = torch.zeros(batch_size, self.window_mixtures, device=device)
 
       # Initialize window vector
       window_vec = torch.zeros(batch_size, self.char_vocab_size, device=device)

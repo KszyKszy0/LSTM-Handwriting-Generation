@@ -37,18 +37,18 @@ class HandwritingRNN(nn.Module):
         
         # Window mechanism: from LSTM1 output we predict parameters for a mixture of Gaussians.
         # Each component produces: delta_kappa, alpha, beta.
-        self.fc_window = nn.Linear(hidden_dim, 3 * window_mixtures)
+        self.fc_window = nn.Linear(hidden_dim + char_vocab_size + input_dim, 3 * window_mixtures)
 
         # LSTM2: Processes the concatenation of LSTM1's output and the updated window vector.
         self.lstm2 = nn.LSTMCell(hidden_dim + char_vocab_size + input_dim, hidden_dim)
 
         # LSTM3: Processes the output of LSTM2.
-        self.lstm3 = nn.LSTMCell(hidden_dim + input_dim, hidden_dim)
+        self.lstm3 = nn.LSTMCell(hidden_dim + char_vocab_size + input_dim, hidden_dim)
 
         # MDN output layer: For each mixture component predict:
         #   pi, mu1, mu2, sigma1, sigma2, rho  (6 parameters per mixture)
         # plus one extra value for the pen (end-of-stroke) probability.
-        self.fc_mdn = nn.Linear(2 * hidden_dim, 6 * num_mixtures + 1)
+        self.fc_mdn = nn.Linear(3 * hidden_dim, 6 * num_mixtures + 1)
 
         # The character dictionary will be set externally.
         self.char_to_idx = None
@@ -75,6 +75,13 @@ class HandwritingRNN(nn.Module):
       max_text_len = text_encoded.size(1)
       text_encoded = text_encoded.to(device)
 
+      text_lengths = torch.tensor(text_lengths, device=device)
+
+      # Create attention mask for padding: shape (batch_size, max_text_len)
+      # True (1.0) for valid positions, False (0.0) for padding
+      phi_mask = torch.arange(max_text_len, device=device).unsqueeze(0) < text_lengths.unsqueeze(1)
+      phi_mask = phi_mask.float()  # convert to float for multiplication
+
       # Initialize hidden states for LSTM layers.
       h1 = torch.zeros(batch_size, self.hidden_dim, device=device)
       c1 = torch.zeros(batch_size, self.hidden_dim, device=device)
@@ -84,73 +91,60 @@ class HandwritingRNN(nn.Module):
       c3 = torch.zeros(batch_size, self.hidden_dim, device=device)
 
       # Initialize attention position
-      # first_pos = 0.5  # Position attention near the first character
-      # spread = 0.7     # How spread out the attention should be initially
-      # positions = torch.linspace(
-      #     first_pos - spread/2, 
-      #     first_pos + spread/2, 
-      #     self.window_mixtures
-      # ).unsqueeze(0).expand(batch_size, -1)
-      # prev_kappa = positions.to(device)
-
       prev_kappa = torch.zeros(batch_size, self.window_mixtures, device=device)
 
-      # Initialize window vector
-      window_vec = torch.zeros(batch_size, self.char_vocab_size, device=device)
-      
-      # Collectors for outputs and attention parameters
-      outputs = []  # MDN outputs
-      kappa_list = []  # kappa values
-      window_params_list = []  # window parameters (before exp)
-      phi_list = []  # attention weights
+      # Initialize window vector (using first char of one-hot text as rough init)
+      window_vec = text_encoded[:, 0, :]
 
-      # Process each time step.
+      # Collectors
+      outputs = []
+      kappa_list = []
+      window_params_list = []
+      phi_list = []
+
       for t in range(seq_len):
-          # Get the current pen stroke
           x_t = input_seq[:, t, :]
-          
-          # LSTM1 with input and window vector
+
           lstm1_input = torch.cat([x_t, window_vec], dim=1)
           h1, c1 = self.lstm1(lstm1_input, (h1, c1))
-          
+
+
+          window_input = torch.cat([x_t, window_vec, h1], dim=1)
           # Compute window parameters
-          window_params = self.fc_window(h1)
-          window_params = window_params.view(batch_size, self.window_mixtures, 3)
-          
-          # Store raw window parameters for regularization
+          window_params = self.fc_window(window_input).view(batch_size, self.window_mixtures, 3)
           window_params_list.append(window_params)
-          
-          # Calculate attention values
-          delta_kappa = torch.exp(window_params[:, :, 0])
-          alpha = torch.exp(window_params[:, :, 1])
-          beta = torch.exp(window_params[:, :, 2])
-          
-          # Update kappa
-          kappa = prev_kappa + delta_kappa
+
+          delta_kappa = F.softplus(window_params[:, :, 0])
+          alpha = F.softplus(window_params[:, :, 1])
+          beta = F.softplus(window_params[:, :, 2])
+
+          kappa = prev_kappa + (delta_kappa / 25.0)
           prev_kappa = kappa
           kappa_list.append(kappa)
 
-          # Compute attention (phi)
-          u = torch.arange(0, max_text_len, device=device).float().view(1, 1, -1)
+          # Compute phi (attention over text)
+          u = torch.arange(0, max_text_len, device=device).float().view(1, 1, -1)  # (1, 1, max_text_len)
           phi_components = alpha.unsqueeze(2) * torch.exp(-beta.unsqueeze(2) * (kappa.unsqueeze(2) - u) ** 2)
-          phi = phi_components.sum(dim=1)  # Sum over mixtures
-          
-          # Store phi for regularization
+          phi = phi_components.sum(dim=1)  # (batch, max_text_len)
+
+          # Apply padding mask
+          phi = phi * phi_mask  # zero out padded positions
+
           phi_list.append(phi)
-          
+
           # Compute window vector
           window_vec = torch.bmm(phi.unsqueeze(1), text_encoded).squeeze(1)
 
-          # LSTM2 
+          # LSTM2
           lstm2_input = torch.cat([h1, window_vec, x_t], dim=1)
           h2, c2 = self.lstm2(lstm2_input, (h2, c2))
 
           # LSTM3
-          lstm3_input = torch.cat([h2, x_t], dim=1)
+          lstm3_input = torch.cat([h2, window_vec, x_t], dim=1)
           h3, c3 = self.lstm3(lstm3_input, (h3, c3))
 
           # Output layer
-          mdn_input = torch.cat([h2, h3], dim=1)
+          mdn_input = torch.cat([h1, h2, h3], dim=1)
           mdn_params = self.fc_mdn(mdn_input)
           outputs.append(mdn_params)
 
@@ -191,11 +185,15 @@ class HandwritingRNN(nn.Module):
         h1, c1 = self.lstm1(lstm1_input, hidden1)
 
         # --- Window Mechanism ---
-        window_params = self.fc_window(h1).view(batch_size, self.window_mixtures, 3)
-        delta_kappa = torch.exp(window_params[:, :, 0])
-        alpha = torch.exp(window_params[:, :, 1])
-        beta = torch.exp(window_params[:, :, 2])
-        kappa = prev_kappa + delta_kappa  # Monotonic update.
+        window_input = torch.cat([x_t, window_vec, h1], dim=1)
+        # Compute window parameters
+        window_params = self.fc_window(window_input).view(batch_size, self.window_mixtures, 3)
+
+        delta_kappa = F.softplus(window_params[:, :, 0])
+        alpha = F.softplus(window_params[:, :, 1])
+        beta = F.softplus(window_params[:, :, 2])
+
+        kappa = prev_kappa + (delta_kappa / 25.0) # Monotonic update.
 
 
         # Compute attention over text positions, including an extra "end-of-text" token.
@@ -212,11 +210,11 @@ class HandwritingRNN(nn.Module):
         h2, c2 = self.lstm2(lstm2_input, hidden2)
 
         # --- LSTM3 Update ---
-        lstm3_input = torch.cat([h2, x_t], dim=1)
+        lstm3_input = torch.cat([h2, window_vec, x_t], dim=1)
         h3, c3 = self.lstm3(lstm3_input, hidden3)
 
         # --- MDN Output ---
-        mdn_input = torch.cat([h2, h3], dim=1)
+        mdn_input = torch.cat([h1, h2, h3], dim=1)
         mdn_params = self.fc_mdn(mdn_input)  # shape: (batch, 6*num_mixtures+1)
 
         return mdn_params, (h1, c1), (h2, c2), (h3, c3), kappa, window_vec, phi

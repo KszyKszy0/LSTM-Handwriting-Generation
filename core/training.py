@@ -40,8 +40,8 @@ LEARNING_RATE = args.lr
 
 input_dim = 3          # (x, y, pen state)
 hidden_dim = 400       # hidden state size
-num_mixtures = 20      # number of Gaussian mixtures in the MDN output
-window_mixtures = 10   # number of mixtures for the window (attention) mechanism
+num_mixtures = 5      # number of Gaussian mixtures in the MDN output
+window_mixtures = 2   # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
 
@@ -57,14 +57,14 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model.to(device)
 
 if args.optim == 'adam':
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-5)
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
     print('Using adam optimizer with ',LEARNING_RATE)
     f = open("logi.txt", "a")
     f.write(f"Using adam optimizer with {LEARNING_RATE}\n")
     f.close()
 
 if args.optim == 'rms':
-    optimizer = optim.RMSprop(model.parameters(), lr=LEARNING_RATE, weight_decay = 1e-5, centered=True)
+    optimizer = optim.RMSprop(model.parameters(), lr=LEARNING_RATE, centered=True)
     print('Using rmsprop optimizer with ',LEARNING_RATE)
     f = open("logi.txt", "a")
     f.write(f"Using rms optimizer with {LEARNING_RATE}\n")
@@ -175,58 +175,48 @@ for epoch in range(starter_epoch + 1, epochs):
         num_non_padded = padding_mask.float().sum() + 1e-8  # Add small epsilon to avoid division by zero
         loss_mdn = masked_losses.sum() / num_non_padded
 
-        # Extract parameters before exponential
+        # # Extract parameters before exponential
         
         # log_kappa = window_params[:, :, :, 0]
-        log_alpha = window_params[:, :, :, 1]
-        log_beta = window_params[:, :, :, 2]
+        # log_alpha = window_params[:, :, :, 1]
+        # log_beta = window_params[:, :, :, 2]
 
-        # Define thresholds
-        alpha_min, alpha_max = 0.1, 10
-        beta_min, beta_max = 0.5, 10
-        kappa_min, kappa_max = 0.03, 0.07
-        phi_min, phi_max = 8, 12
+        # # Define thresholds
+        # alpha_min, alpha_max = 0.1, 10
+        # beta_min, beta_max = 5, 10
+        # kappa_min, kappa_max = 0.02, 0.04
+        # phi_min, phi_max = 0.8, 1.2
 
-        phi_penalty = (torch.relu(phi_min - phi.sum(dim=2)) + torch.relu(phi.sum(dim=2) - phi_max)) * padding_mask.float()
+        # phi_penalty = (torch.relu(phi_min - phi.sum(dim=2)) + torch.relu(phi.sum(dim=2) - phi_max)) * padding_mask.float()
 
-        phi_penalty = phi_penalty.sum() / num_non_padded
+        # phi_penalty = phi_penalty.sum() / num_non_padded
         
 
-        # Compute penalties
-        alpha_penalty = (torch.relu(alpha_min - log_alpha) + torch.relu(log_alpha - alpha_max)) * padding_mask.float().unsqueeze(-1) 
-        beta_penalty = (torch.relu(beta_min - log_beta) + torch.relu(log_beta - beta_max)) * padding_mask.float().unsqueeze(-1)
+        # # Compute penalties
+        # alpha_penalty = (torch.relu(alpha_min - log_alpha) + torch.relu(log_alpha - alpha_max)) * padding_mask.float().unsqueeze(-1) 
+        # beta_penalty = (torch.relu(beta_min - log_beta) + torch.relu(log_beta - beta_max)) * padding_mask.float().unsqueeze(-1)
 
-        # Sum the penalties to get a loss term
-        penalizing_loss = (alpha_penalty.sum() + beta_penalty.sum()) / num_non_padded
+        # # Sum the penalties to get a loss term
+        # penalizing_loss = (alpha_penalty.sum() + beta_penalty.sum()) / num_non_padded
 
-        # print(window_params.shape)
-        # print(padding_mask.shape)
-        # print(log_beta.shape)
-
-        # kappa_penalty = log_kappa.sum() / num_non_padded
-        # alpha_penalty = log_alpha.sum() / num_non_padded
-        # beta_penalty = log_beta.sum() / num_non_padded
-        # alpha_penalty = log_alpha.sum() / num_non_padded
- 
-        # loss_window = beta_penalty
         
-        # For kappa penalty, only consider positions where both current and next step are non-padded
-        kappa_mask = padding_mask[:, :-1] & padding_mask[:, 1:]
-        # masked_delta_kappa = delta_kappa * kappa_mask.unsqueeze(-1).float()
+        # # For kappa penalty, only consider positions where both current and next step are non-padded
+        # kappa_mask = padding_mask[:, :-1] & padding_mask[:, 1:]
+        # # masked_delta_kappa = delta_kappa * kappa_mask.unsqueeze(-1).float()
         
-        # Compute the masked kappa penalty
+        # # Compute the masked kappa penalty
         # num_kappa_elements = kappa_mask.float().sum() + 1e-8
-        # kappa_penalty = lambda_kappa * (masked_delta_kappa.sum() / num_kappa_elements)
+        # # kappa_penalty = lambda_kappa * (masked_delta_kappa.sum() / num_kappa_elements)
 
-        # Compute kappa penalty with proper masking
-        delta_kappa = kappas[:, 1:, :] - kappas[:, :-1, :]
-        kappa_penalty = (torch.relu(kappa_min - delta_kappa) + torch.relu(delta_kappa - kappa_max)) * kappa_mask.float().unsqueeze(-1)
+        # # Compute kappa penalty with proper masking
+        # delta_kappa = kappas[:, 1:, :] - kappas[:, :-1, :]
+        # kappa_penalty = (torch.relu(kappa_min - delta_kappa) + torch.relu(delta_kappa - kappa_max)) * kappa_mask.float().unsqueeze(-1)
 
-        # delta_kappa = torch.clamp(delta_kappa, 0, 1)
-        penalizing_loss += (kappa_penalty.sum() / num_non_padded)
+        # # delta_kappa = torch.clamp(delta_kappa, 0, 1)
+        # penalizing_loss += (kappa_penalty.sum() / num_kappa_elements) * 10
 
         # Total loss
-        loss = loss_mdn + penalizing_loss * 0.05 + phi_penalty * 0.01
+        loss = loss_mdn
 
         # attn_entropy = -torch.sum(phi * torch.log(phi + 1e-8), dim=-1).mean()
 

@@ -7,7 +7,7 @@ import math
 # 1. Define Character Dictionary
 # =========================
 # Here we define a simple vocabulary. You can expand it as needed.
-vocab = list("abcdefghijklmnopqrstuvwxyz 1234567890")  # letters and space
+vocab = list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ 1234567890")  # letters and space
 char_to_idx = {c: i for i, c in enumerate(vocab)}
 idx_to_char = {i: c for i, c in enumerate(vocab)}
 
@@ -51,7 +51,7 @@ class HandwritingRNN(nn.Module):
         self.fc_mdn = nn.Linear(3 * hidden_dim, 6 * num_mixtures + 1)
 
         # The character dictionary will be set externally.
-        self.char_to_idx = None
+        self.char_to_idx = char_to_idx
 
     def forward(self, input_seq, text):
       """
@@ -112,13 +112,17 @@ class HandwritingRNN(nn.Module):
           window_input = torch.cat([x_t, window_vec, h1], dim=1)
           # Compute window parameters
           window_params = self.fc_window(window_input).view(batch_size, self.window_mixtures, 3)
-          window_params_list.append(window_params)
+          # window_params_list.append(window_params)
 
           delta_kappa = F.softplus(window_params[:, :, 0])
           alpha = F.softplus(window_params[:, :, 1])
           beta = F.softplus(window_params[:, :, 2])
 
-          kappa = prev_kappa + (delta_kappa / 25.0)
+          
+          window_params_activated = torch.stack([delta_kappa, alpha, beta], dim=2)
+          window_params_list.append(window_params_activated)
+
+          kappa = prev_kappa + delta_kappa
           prev_kappa = kappa
           kappa_list.append(kappa)
 
@@ -193,7 +197,7 @@ class HandwritingRNN(nn.Module):
         alpha = F.softplus(window_params[:, :, 1])
         beta = F.softplus(window_params[:, :, 2])
 
-        kappa = prev_kappa + (delta_kappa / 25.0) # Monotonic update.
+        kappa = prev_kappa + delta_kappa # Monotonic update.
 
 
         # Compute attention over text positions, including an extra "end-of-text" token.
@@ -239,7 +243,7 @@ class HandwritingRNN(nn.Module):
         # We assume self.char_vocab_size is already set.
         text_tensor = torch.zeros(batch_size, max_len, self.char_vocab_size, device=torch.device("cpu"))
         for i, text in enumerate(text_batch):
-            for j, char in enumerate(text.lower()):
+            for j, char in enumerate(text):
                 # Use the character dictionary provided (if a char is not found, it is skipped)
                 idx = self.char_to_idx.get(char, None)
                 if idx is not None:

@@ -19,8 +19,8 @@ args = parser.parse_args()
 
 # Hyperparameters
 input_dim = 3          # (x, y, pen state)
-hidden_dim = 400       # hidden state size
-num_mixtures = 5      # number of Gaussian mixtures in the MDN output
+hidden_dim = 100       # hidden state size
+num_mixtures = 4      # number of Gaussian mixtures in the MDN output
 window_mixtures = 2   # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
@@ -221,6 +221,6 @@ if model.char_to_idx is None:
         # Example vocabulary: letters and space.
         vocab = model_def.vocab
         model.char_to_idx = {c: i for i, c in enumerate(vocab)}
-strokes, attentions = generate_handwriting_with_attention(model, text_to_generate, seq_len=2000, temperature=0.8)
+strokes, attentions = generate_handwriting_with_attention(model, text_to_generate, seq_len=2000, temperature=1)
 save_strokes_to_svg(strokes, "handwriting.svg")
 plot_attention(attentions, text_to_generate)

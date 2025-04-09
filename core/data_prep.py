@@ -29,36 +29,30 @@ maximal = 0
 # Funkcja do wczytania i sparsowania pliku SVG
 def parse_svg(file_path):
     """
-    Funkcja bierze plik SVG, przetwarza wszystkie polyline i tworzy tablicę punktów (x, y, 0-1),
-    gdzie 0 oznacza, że długopis jest w powietrzu, a 1, że pisze.
+    Parses an SVG file, extracting all polyline points as (x, y, pen_state).
+    pen_state: 1 = pen up (move), 0 = pen down (draw)
     """
     tree = ET.parse(file_path)
     root = tree.getroot()
+    ns = {'svg': 'http://www.w3.org/2000/svg'}
     polylines = []
 
-    x = 0
-    y = 0
 
-    # Znajdź wszystkie polyline w SVG
-    for polyline in root.findall('.//{http://www.w3.org/2000/svg}polyline'):
+    for polyline in root.findall('.//svg:polyline', ns):
         points_str = polyline.attrib.get('points', '').strip()
+
         if points_str:
-            # Zamień punkty na listę par współrzędnych
             points = []
-            i = 0
             for pair in points_str.split():
-
                 x, y = map(float, pair.split(','))
-                points.append([x, y, 0])  # Długopis pisze
-                i += 1
+                points.append([x, y, 0])  # Pen down
 
-            # Dodaj stan "w powietrzu" po zakończeniu polyline
+            # Append pen up at the end
             if points:
-                last_point = points[-1][:2]  # Pobierz tylko x, y
-                points.append([last_point[0], last_point[1], 1])  # Długopis w powietrzu
+                last_point = points[-1][:2]
+                points.append([last_point[0], last_point[1], 1])  # Pen up
 
             polylines.extend(points)
-
 
     polylines = adaptive_resample(polylines)
 
@@ -73,7 +67,7 @@ def parse_svg(file_path):
 
     return list(polylines)
 
-def adaptive_resample(stroke_data, min_distance=4.0):
+def adaptive_resample(stroke_data, min_distance=2.0):
     """
     Resample stroke data to reduce resolution while preserving character.
     
@@ -119,7 +113,7 @@ class HandwritingDataset(Dataset):
         """
         self.data = []  # Lista sekwencji (każda sekwencja to lista punktów)
         # self.texts = []  # Lista tekstów odpowiadających danym
-        self.max_timesteps = 720
+        self.max_timesteps = 940
         self.realData = []
 
         all_texts = []
@@ -143,6 +137,11 @@ class HandwritingDataset(Dataset):
         for file, text in zip(svg_files, all_texts):
             # Parsowanie pliku SVG na punkty
             polylines = parse_svg(file)
+
+            if(len(polylines) > 900):
+                print(text)
+                print(len(polylines))
+                continue
             
             # Dodanie całej sekwencji z pliku oraz odpowiadającego tekstu
             self.data.append((polylines, text))

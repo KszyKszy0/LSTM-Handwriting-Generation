@@ -39,8 +39,8 @@ MODEL_PATH = "../models/" + args.savefile
 LEARNING_RATE = args.lr
 
 input_dim = 3          # (x, y, pen state)
-hidden_dim = 400       # hidden state size
-num_mixtures = 5      # number of Gaussian mixtures in the MDN output
+hidden_dim = 100       # hidden state size
+num_mixtures = 4      # number of Gaussian mixtures in the MDN output
 window_mixtures = 2   # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
@@ -97,7 +97,7 @@ if args.opt_checkpoint is not None:
     load_dicts(full_path)
 
 # Obsługa wielu folderów
-folder_paths = ["../data/mwoutput","../data/output"]  # Lista ścieżek do folderów
+folder_paths = ["../data/output"]  # Lista ścieżek do folderów
 
 # Funkcja do wczytywania danych z wielu folderów
 def load_from_folders(folder_paths):
@@ -109,7 +109,10 @@ def load_from_folders(folder_paths):
         files_content = f"{folder_path}/files.txt"
         
         # Lista nazw plików z rozszerzeniem .svg z bieżącego folderu
-        svg_files = [f"{folder_path}/" + file for file in os.listdir(folder_path) if file.endswith('.svg')]
+        svg_files = [f"{folder_path}/{file}" for file in os.listdir(folder_path) if file.endswith('.svg')]
+        
+        # Sortowanie plików SVG numerycznie
+        svg_files.sort(key=lambda x: int(os.path.splitext(os.path.basename(x))[0]))
         
         all_svg_files.extend(svg_files)
         all_text_files.append(files_content)
@@ -128,7 +131,6 @@ val_size = dataset_size - train_size
 train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 print("Train size: ",train_size)
 print("Validation size: ",val_size)
-
 
 # Add learning rate scheduler 
 # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3, verbose=True, min_lr=1e-7)
@@ -175,57 +177,55 @@ for epoch in range(starter_epoch + 1, epochs):
         num_non_padded = padding_mask.float().sum() + 1e-8  # Add small epsilon to avoid division by zero
         loss_mdn = masked_losses.sum() / num_non_padded
 
-        # # Extract parameters before exponential
+        # # Extract parameters after exponential
         
-        # log_kappa = window_params[:, :, :, 0]
-        # log_alpha = window_params[:, :, :, 1]
-        # log_beta = window_params[:, :, :, 2]
+        log_kappa = window_params[:, :, :, 0]
+        log_alpha = window_params[:, :, :, 1]
+        log_beta = window_params[:, :, :, 2]
 
         # # Define thresholds
-        # alpha_min, alpha_max = 0.1, 10
-        # beta_min, beta_max = 5, 10
-        # kappa_min, kappa_max = 0.02, 0.04
-        # phi_min, phi_max = 0.8, 1.2
-
-        # phi_penalty = (torch.relu(phi_min - phi.sum(dim=2)) + torch.relu(phi.sum(dim=2) - phi_max)) * padding_mask.float()
-
-        # phi_penalty = phi_penalty.sum() / num_non_padded
-        
+        alpha_min, alpha_max = 1, 10
+        beta_min, beta_max = 0.4, 10 
+        kappa_min, kappa_max = 0.02, 0.04 
 
         # # Compute penalties
-        # alpha_penalty = (torch.relu(alpha_min - log_alpha) + torch.relu(log_alpha - alpha_max)) * padding_mask.float().unsqueeze(-1) 
-        # beta_penalty = (torch.relu(beta_min - log_beta) + torch.relu(log_beta - beta_max)) * padding_mask.float().unsqueeze(-1)
+        alpha_penalty = (torch.relu(alpha_min - log_alpha) + torch.relu(log_alpha - alpha_max)) * padding_mask.float().unsqueeze(-1) 
+        beta_penalty = (torch.relu(beta_min - log_beta) + torch.relu(log_beta - beta_max)) * padding_mask.float().unsqueeze(-1)
 
         # # Sum the penalties to get a loss term
-        # penalizing_loss = (alpha_penalty.sum() + beta_penalty.sum()) / num_non_padded
+        penalizing_loss = (alpha_penalty.sum() + beta_penalty.sum()) / num_non_padded
 
         
         # # For kappa penalty, only consider positions where both current and next step are non-padded
-        # kappa_mask = padding_mask[:, :-1] & padding_mask[:, 1:]
-        # # masked_delta_kappa = delta_kappa * kappa_mask.unsqueeze(-1).float()
+        kappa_mask = padding_mask[:, :-1] & padding_mask[:, 1:]
+        # masked_delta_kappa = delta_kappa * kappa_mask.unsqueeze(-1).float()
         
         # # Compute the masked kappa penalty
-        # num_kappa_elements = kappa_mask.float().sum() + 1e-8
-        # # kappa_penalty = lambda_kappa * (masked_delta_kappa.sum() / num_kappa_elements)
+        num_kappa_elements = kappa_mask.float().sum() + 1e-8
 
         # # Compute kappa penalty with proper masking
-        # delta_kappa = kappas[:, 1:, :] - kappas[:, :-1, :]
-        # kappa_penalty = (torch.relu(kappa_min - delta_kappa) + torch.relu(delta_kappa - kappa_max)) * kappa_mask.float().unsqueeze(-1)
+        delta_kappa = kappas[:, 1:, :] - kappas[:, :-1, :]
+        kappa_penalty = (torch.relu(kappa_min - delta_kappa) + torch.relu(delta_kappa - kappa_max)) * kappa_mask.float().unsqueeze(-1)
+
+        # print('kappa error',kappa_penalty.mean())
+        # print('alpha error',alpha_penalty.mean())
+        # print('beta_error',beta_penalty.mean())
 
         # # delta_kappa = torch.clamp(delta_kappa, 0, 1)
-        # penalizing_loss += (kappa_penalty.sum() / num_kappa_elements) * 10
+        penalizing_loss += (kappa_penalty.sum() / num_kappa_elements)
 
         # Total loss
-        loss = loss_mdn
-
-        # attn_entropy = -torch.sum(phi * torch.log(phi + 1e-8), dim=-1).mean()
-
-        # loss = loss_mdn
+        loss = loss_mdn + penalizing_loss
         
         # Backward pass and optimization
         loss.backward()
-        nn.utils.clip_grad_norm_(model.parameters(), max_norm=10)
+
+        
+
+        nn.utils.clip_grad_norm_(model.parameters(), max_norm=100)
         optimizer.step()
+
+        
         
         total_train_loss += loss.item()
 

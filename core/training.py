@@ -39,9 +39,9 @@ MODEL_PATH = "../models/" + args.savefile
 LEARNING_RATE = args.lr
 
 input_dim = 3          # (x, y, pen state)
-hidden_dim = 100       # hidden state size
-num_mixtures = 4      # number of Gaussian mixtures in the MDN output
-window_mixtures = 2   # number of mixtures for the window (attention) mechanism
+hidden_dim = 400       # hidden state size
+num_mixtures = 8      # number of Gaussian mixtures in the MDN output
+window_mixtures = 4   # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
 
@@ -97,7 +97,7 @@ if args.opt_checkpoint is not None:
     load_dicts(full_path)
 
 # Obsługa wielu folderów
-folder_paths = ["../data/output"]  # Lista ścieżek do folderów
+folder_paths = ["../data/output", "../data/mwoutput", "../data/poloutput"]  # Lista ścieżek do folderów
 
 # Funkcja do wczytywania danych z wielu folderów
 def load_from_folders(folder_paths):

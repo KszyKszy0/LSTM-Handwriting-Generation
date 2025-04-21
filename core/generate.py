@@ -208,7 +208,7 @@ def save_strokes_to_svg(strokes, filename, scale=1.0, stroke_width=2):
 # =========================
 # Example usage:
 # Uncomment and modify the following lines to load your model and generate handwriting.
-model_path = args.model       # path to your saved model file
+model_path = "../models/" + args.model       # path to your saved model file
 text_to_generate = args.text
 # load_model_and_generate(model_path, text_to_generate, seq_len=80, output_svg="handwriting.svg", temperature=0.95)
 

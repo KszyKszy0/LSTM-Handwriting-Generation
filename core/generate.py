@@ -19,9 +19,9 @@ args = parser.parse_args()
 
 # Hyperparameters
 input_dim = 3          # (x, y, pen state)
-hidden_dim = 100       # hidden state size
-num_mixtures = 4      # number of Gaussian mixtures in the MDN output
-window_mixtures = 2   # number of mixtures for the window (attention) mechanism
+hidden_dim = 400       # hidden state size
+num_mixtures = 8      # number of Gaussian mixtures in the MDN output
+window_mixtures = 4   # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
 
@@ -135,7 +135,7 @@ def generate_handwriting_with_attention(model, text, seq_len=300, temperature=1.
             print(t," timestep: ",phi)
             print(prev_kappa)
 
-            if phi[0, -1] > phi[0, :-1].max():
+            if (phi[0, -1] > phi[0, :-1].max()) and (phi[0, :-1].max() < 1):
                 print(f"Stopping generation at time step {t+1} due to attention-based end-of-sequence condition.")
                 break
             
@@ -208,7 +208,7 @@ def save_strokes_to_svg(strokes, filename, scale=1.0, stroke_width=2):
 # =========================
 # Example usage:
 # Uncomment and modify the following lines to load your model and generate handwriting.
-model_path = "../models/" + args.model       # path to your saved model file
+model_path = args.model       # path to your saved model file
 text_to_generate = args.text
 # load_model_and_generate(model_path, text_to_generate, seq_len=80, output_svg="handwriting.svg", temperature=0.95)
 
@@ -221,6 +221,6 @@ if model.char_to_idx is None:
         # Example vocabulary: letters and space.
         vocab = model_def.vocab
         model.char_to_idx = {c: i for i, c in enumerate(vocab)}
-strokes, attentions = generate_handwriting_with_attention(model, text_to_generate, seq_len=2000, temperature=1)
+strokes, attentions = generate_handwriting_with_attention(model, text_to_generate, seq_len=10_000, temperature=0.1)
 save_strokes_to_svg(strokes, "handwriting.svg")
 plot_attention(attentions, text_to_generate)

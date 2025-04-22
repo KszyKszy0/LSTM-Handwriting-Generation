@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-from data.utils.charStats import getList
+# from data.utils.charStats import getList TODO
 
 # =========================
 # 1. Define Character Dictionary

@@ -1,1 +1,9 @@
+# add pip from data folder
 -r data/requirements.txt
+
+# core
+torch
+argparse
+numpy
+svgwrite
+matplotlib

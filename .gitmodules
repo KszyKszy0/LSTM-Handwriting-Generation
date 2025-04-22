@@ -1,0 +1,6 @@
+[submodule "data"]
+	path = data
+	url = https://gitlab.d0d0.ovh/ai/data.git
+[submodule "models-repo"]
+	path = models-repo
+	url = https://gitlab.d0d0.ovh/ai/models.git

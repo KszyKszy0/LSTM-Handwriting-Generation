@@ -1,11 +1,8 @@
 models/*/*
 !models/*/.gitkeep
-/data/*
-!data/.gitkeep
-__pycache__
-/core/__pycache__
+*__pycache__*
 model_metrics.csv
 logi.txt
-core/plot.png
-core/handwriting.svg
 .vscode/launch.json
+handwriting.svg
+plot.png

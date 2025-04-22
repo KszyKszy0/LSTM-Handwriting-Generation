@@ -113,7 +113,7 @@ class HandwritingDataset(Dataset):
         """
         self.data = []  # Lista sekwencji (każda sekwencja to lista punktów)
         # self.texts = []  # Lista tekstów odpowiadających danym
-        self.max_timesteps = 940
+        self.max_timesteps = 1550
         self.realData = []
 
         all_texts = []
@@ -121,7 +121,7 @@ class HandwritingDataset(Dataset):
 
         for text_file in text_files:
             try:
-                with open(text_file, 'r', encoding='windows-1252') as f:
+                with open(text_file, 'r', encoding='utf-8') as f:
                     lines = f.readlines()
                     texts = [line.strip() for line in lines]
                     all_texts.extend(texts)
@@ -138,7 +138,7 @@ class HandwritingDataset(Dataset):
             # Parsowanie pliku SVG na punkty
             polylines = parse_svg(file)
 
-            if(len(polylines) > 900):
+            if(len(polylines) > 1500):
                 print(text)
                 print(len(polylines))
                 continue

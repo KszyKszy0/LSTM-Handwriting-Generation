@@ -9,7 +9,7 @@ from data.utils.charStats import getList
 # =========================
 # Here we define a simple vocabulary. You can expand it as needed.
 # vocab = list(getList())  # letters and space
-vocab = list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ 1234567890")  # letters and space
+vocab = list("aąbcćdeęfghijklłmnńoópqrsśtuvwxyzźżABCĆDEFGHIJKLŁMNOÓPQRSŚTUVWXYZŹŻ 0123456789'-!\"#$%&()*,./:;?@[]+<=>")  # letters and space
 char_to_idx = {c: i for i, c in enumerate(vocab)}
 idx_to_char = {i: c for i, c in enumerate(vocab)}
 

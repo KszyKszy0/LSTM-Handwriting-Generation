@@ -2,11 +2,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
+from data.utils.charStats import getList
 
 # =========================
 # 1. Define Character Dictionary
 # =========================
 # Here we define a simple vocabulary. You can expand it as needed.
+# vocab = list(getList())  # letters and space
 vocab = list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ 1234567890")  # letters and space
 char_to_idx = {c: i for i, c in enumerate(vocab)}
 idx_to_char = {i: c for i, c in enumerate(vocab)}

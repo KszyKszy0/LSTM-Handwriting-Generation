@@ -35,13 +35,14 @@ args = parser.parse_args()
 
 # Hyperparameters
 
-MODEL_PATH = "../models/" + args.savefile
+MODEL_PATH = args.savefile
 LEARNING_RATE = args.lr
+BATCH_SIZE = 64
 
 input_dim = 3          # (x, y, pen state)
-hidden_dim = 400       # hidden state size
-num_mixtures = 8      # number of Gaussian mixtures in the MDN output
-window_mixtures = 4   # number of mixtures for the window (attention) mechanism
+hidden_dim = 650       # hidden state size
+num_mixtures = 10      # number of Gaussian mixtures in the MDN output
+window_mixtures = 4    # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
 
@@ -89,7 +90,7 @@ def load_dicts(path):
     f.close()
 
 if args.opt_checkpoint is not None:
-    full_path = '../models/' + args.opt_checkpoint
+    full_path = args.opt_checkpoint
     print("Model path: ", full_path)
     f = open("logi.txt", "a")
     f.write(f"Model path:  {full_path}\n")
@@ -97,7 +98,7 @@ if args.opt_checkpoint is not None:
     load_dicts(full_path)
 
 # Obsługa wielu folderów
-folder_paths = ["../data/output", "../data/mwoutput", "../data/poloutput"]  # Lista ścieżek do folderów
+folder_paths = ["../data/output", "../data/mwoutput", "../data/poloutput", "../data/hibru"]  # Lista ścieżek do folderów
 
 # Funkcja do wczytywania danych z wielu folderów
 def load_from_folders(folder_paths):
@@ -136,12 +137,137 @@ print("Validation size: ",val_size)
 # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3, verbose=True, min_lr=1e-7)
 
 # Create DataLoaders for training and validation.
-train_loader = data.DataLoader(train_dataset, batch_size=64, shuffle=True, collate_fn=data.handwriting_collate_fn)
-val_loader = data.DataLoader(val_dataset, batch_size=64, shuffle=False, collate_fn=data.handwriting_collate_fn)
+train_loader = data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=data.handwriting_collate_fn)
+val_loader = data.DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=data.handwriting_collate_fn)
 
 best_val_loss = float('inf')
 
-lambda_kappa = 0.1
+special_chars = set('ąężźćńłóśABCĆDEFGHIJKLŁMNOÓPQRSŚTUVWXYZŹŻ0123456789\'-!\"#$%&()*,./:;?@[]+<=>qQvVxX')
+
+raw_counts = {
+    'a': 10559,
+    'ą': 491,
+    'b': 1900,
+    'c': 4412,
+    'ć': 386,
+    'd': 3824,
+    'e': 10912,
+    'b': 1900,
+    'c': 4412,
+    'ć': 386,
+    'd': 3824,
+    'e': 10912,
+    'ę': 975,
+    'f': 266,
+    'g': 1413,
+    'h': 989,
+    'i': 9747,
+    'j': 2774,
+    'k': 3302,
+    'l': 3776,
+    'ł': 1068,
+    'm': 4288,
+    'n': 5710,
+    'ń': 153,
+    'o': 9177,
+    'ó': 428,
+    'p': 3171,
+    'q': 28,
+    'r': 4741,
+    's': 5944,
+    'ś': 476,
+    't': 4553,
+    'u': 2790,
+    'v': 78,
+    'w': 3999,
+    'x': 67,
+    'y': 4317,
+    'z': 7169,
+    'ź': 177,
+    'ż': 466,
+    'A': 136,
+    'B': 139,
+    'C': 420,
+    'Ć': 19,
+    'D': 161,
+    'E': 109,
+    'F': 117,
+    'G': 119,
+    'H': 119,
+    'I': 137,
+    'J': 297,
+    'K': 158,
+    'L': 122,
+    'Ł': 103,
+    'M': 456,
+    'N': 381,
+    'O': 222,
+    'Ó': 18,
+    'P': 405,
+    'Q': 14,
+    'R': 115,
+    'S': 232,
+    'Ś': 102,
+    'T': 601,
+    'U': 124,
+    'V': 20,
+    'W': 300,
+    'X': 20,
+    'Y': 78,
+    'Z': 229,
+    'Ź': 29,
+    'Ż': 102,
+    ' ': 16708,
+    '0': 248,
+    '1': 126,
+    '2': 93,
+    '3': 77,
+    '4': 58,
+    '5': 77,
+    '6': 56,
+    '7': 58,
+    '8': 60,
+    '9': 71,
+    '!': 77,
+    '"': 83,
+    '#': 26,
+    '%': 26,
+    '&': 26,
+    "'": 52,
+    '(': 25,
+    ')': 25,
+    '*': 26,
+    '+': 25,
+    ',': 293,
+    '-': 36,
+    '.': 200,
+    '/': 28,
+    ':': 37,
+    ';': 26,
+    '<': 25,
+    '=': 25,
+    '>': 25,
+    '?': 169,
+    '@': 25,
+    '[': 26,
+    ']': 26,
+    '$': 26
+}
+
+avg_count = 1212
+
+# Option A: simple inverse frequency
+char_weights = {c: 1.0 / cnt for c, cnt in raw_counts.items()}
+
+
+max_count = max(raw_counts.values())
+char_weights = {c: avg_count / cnt for c, cnt in raw_counts.items()}
+
+# L1 normalization
+# total = sum(char_weights.values())
+# char_weights = {c: w / total for c, w in char_weights.items()}
+# print(char_weights)
+# input("")
 
 for epoch in range(starter_epoch + 1, epochs):
     # ----- Training Phase -----
@@ -160,7 +286,7 @@ for epoch in range(starter_epoch + 1, epochs):
         # The ~ operator inverts the mask, so True means "not padding" (i.e., keep this data point)
         
         # Forward pass: compute MDN parameters for the input sequence
-        mdn_params_seq, kappas, window_params, phi = model(input_seq, text)
+        mdn_params_seq, window_params, phi = model(input_seq, text)
         
         # Compute the unmasked MDN loss
         batch_losses = model_def.mdn_loss(mdn_params_seq, target_seq, num_mixtures)
@@ -172,13 +298,67 @@ for epoch in range(starter_epoch + 1, epochs):
         
         # Apply the mask (set padded values to 0)
         masked_losses = batch_losses * padding_mask.float()
-        
-        # Compute the masked average (sum of masked losses divided by count of non-padded elements)
-        num_non_padded = padding_mask.float().sum() + 1e-8  # Add small epsilon to avoid division by zero
-        loss_mdn = masked_losses.sum() / num_non_padded
 
-        # # Extract parameters after exponential
+        batch_size, seq_len = masked_losses.shape
+
+
+        # focused_char_idx = phi.argmax(dim=2)  # Shape: [batch_size, seq_len]
+
+        # weights_per_timestep = torch.ones_like(focused_char_idx, dtype=torch.float32, device=device)
+
+        # # 2. Build a tensor of char weights
+        # max_text_len = max(len(txt) for txt in text)
+        # char_weight_tensor = torch.ones((len(text), max_text_len), device=device)
+
+        # for k, text_seq in enumerate(text):
+        #     for j, ch in enumerate(text_seq):
+        #         char_weight_tensor[k, j] = char_weights.get(ch, 1.0)
+
+        # # 3. Lookup weights per timestep
+        # weights_per_timestep = torch.gather(char_weight_tensor, 1, focused_char_idx)
+
+        # scaled_losses = masked_losses * weights_per_timestep
+
+        # Build a tensor of W for each sample
+        W = torch.ones(batch_size, device=device, dtype=torch.float32)
+
+        for j, text in enumerate(text):
+            # sum weights for each character, ignoring padding; then average
+            weights = [ char_weights.get(ch, 1.0) for ch in text ]
+            if len(weights) > 0:
+                W[j] = sum(weights) / len(weights)
+            else:
+                W[j] = 1.0
+            
+            if(len(text) > 30):
+                W[j] += 1
+            
+            
+            # print(text,W)
+            # input("")
+
+
+        # Expand to [batch_size, seq_len] and apply
+        W_expanded = W.unsqueeze(1)            # [batch_size, 1]
+        scaled_losses = masked_losses * W_expanded
         
+        # # Count special characters in each text and use it as a multiplier
+        # scale_factors = torch.ones(len(text), device=device)
+        # for idx, text in enumerate(text):
+        #     count = sum(char in special_chars for char in text)
+        #     if count > 0:
+
+        # Final average loss over non-padded tokens
+        num_non_padded = padding_mask.float().sum() + 1e-8
+        loss_mdn = scaled_losses.sum() / num_non_padded
+
+        # Compute the masked average (sum of masked losses divided by count of non-padded elements)
+        # num_non_padded = padding_mask.float().sum() + 1e-8  # Add small epsilon to avoid division by zero
+        # loss_mdn = masked_losses.sum() / num_non_padded
+
+        # Extract parameters after exponential
+        
+        # [Batch_size, seq_len, window_mixtures, (a,b,k)]  
         log_kappa = window_params[:, :, :, 0]
         log_alpha = window_params[:, :, :, 1]
         log_beta = window_params[:, :, :, 2]
@@ -186,7 +366,7 @@ for epoch in range(starter_epoch + 1, epochs):
         # # Define thresholds
         alpha_min, alpha_max = 1, 10
         beta_min, beta_max = 0.4, 10 
-        kappa_min, kappa_max = 0.02, 0.04 
+        kappa_min, kappa_max = 0.03, 0.05 
 
         # # Compute penalties
         alpha_penalty = (torch.relu(alpha_min - log_alpha) + torch.relu(log_alpha - alpha_max)) * padding_mask.float().unsqueeze(-1) 
@@ -195,27 +375,15 @@ for epoch in range(starter_epoch + 1, epochs):
         # # Sum the penalties to get a loss term
         penalizing_loss = (alpha_penalty.sum() + beta_penalty.sum()) / num_non_padded
 
-        
-        # # For kappa penalty, only consider positions where both current and next step are non-padded
-        kappa_mask = padding_mask[:, :-1] & padding_mask[:, 1:]
-        # masked_delta_kappa = delta_kappa * kappa_mask.unsqueeze(-1).float()
-        
-        # # Compute the masked kappa penalty
-        num_kappa_elements = kappa_mask.float().sum() + 1e-8
-
         # # Compute kappa penalty with proper masking
-        delta_kappa = kappas[:, 1:, :] - kappas[:, :-1, :]
-        kappa_penalty = (torch.relu(kappa_min - delta_kappa) + torch.relu(delta_kappa - kappa_max)) * kappa_mask.float().unsqueeze(-1)
+        kappa_penalty = (torch.relu(kappa_min - log_kappa) + torch.relu(log_kappa - kappa_max)) * padding_mask.float().unsqueeze(-1)
 
-        # print('kappa error',kappa_penalty.mean())
-        # print('alpha error',alpha_penalty.mean())
-        # print('beta_error',beta_penalty.mean())
-
-        # # delta_kappa = torch.clamp(delta_kappa, 0, 1)
-        penalizing_loss += (kappa_penalty.sum() / num_kappa_elements)
+        penalizing_loss += (kappa_penalty.sum() / num_non_padded)
 
         # Total loss
         loss = loss_mdn + penalizing_loss
+
+        # loss = loss_mdn
         
         # Backward pass and optimization
         loss.backward()
@@ -259,7 +427,7 @@ for epoch in range(starter_epoch + 1, epochs):
             padding_mask = ~torch.all(target_seq == 0, dim=2)
             
             # Forward pass
-            mdn_params_seq, kappas_unused, window_unused, phi_unused = model(input_seq, text)
+            mdn_params_seq, window_unused, phi_unused = model(input_seq, text)
             
             # Compute unmasked loss with reduction='none'
             batch_losses = model_def.mdn_loss(mdn_params_seq, target_seq, num_mixtures)

@@ -142,6 +142,11 @@ class HandwritingDataset(Dataset):
                 print(text)
                 print(len(polylines))
                 continue
+
+            if(len(polylines) > len(text) * 45):
+                print(text)
+                print(len(polylines))
+                continue
             
             # Dodanie całej sekwencji z pliku oraz odpowiadającego tekstu
             self.data.append((polylines, text))

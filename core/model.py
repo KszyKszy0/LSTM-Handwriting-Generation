@@ -100,7 +100,6 @@ class HandwritingRNN(nn.Module):
 
       # Collectors
       outputs = []
-      kappa_list = []
       window_params_list = []
       phi_list = []
 
@@ -115,18 +114,16 @@ class HandwritingRNN(nn.Module):
           # Compute window parameters
           window_params = self.fc_window(window_input).view(batch_size, self.window_mixtures, 3)
           # window_params_list.append(window_params)
-
+          
           delta_kappa = F.softplus(window_params[:, :, 0])
           alpha = F.softplus(window_params[:, :, 1])
           beta = F.softplus(window_params[:, :, 2])
-
           
           window_params_activated = torch.stack([delta_kappa, alpha, beta], dim=2)
           window_params_list.append(window_params_activated)
 
           kappa = prev_kappa + delta_kappa
           prev_kappa = kappa
-          kappa_list.append(kappa)
 
           # Compute phi (attention over text)
           u = torch.arange(0, max_text_len, device=device).float().view(1, 1, -1)  # (1, 1, max_text_len)
@@ -156,11 +153,10 @@ class HandwritingRNN(nn.Module):
 
       # Stack all temporal outputs
       mdn_params_seq = torch.stack(outputs, dim=1)  # (batch, seq_len, 6*num_mixtures+1)
-      kappas = torch.stack(kappa_list, dim=1)  # (batch, seq_len, window_mixtures)
       window_params_seq = torch.stack(window_params_list, dim=1)  # (batch, seq_len, window_mixtures, 3)
       phi_seq = torch.stack(phi_list, dim=1)  # (batch, seq_len, max_text_len)
       
-      return mdn_params_seq, kappas, window_params_seq, phi_seq
+      return mdn_params_seq, window_params_seq, phi_seq
 
     def generate_step(self, x_t, hidden1, hidden2, hidden3, prev_kappa, window_vec, text_encoded):
         """

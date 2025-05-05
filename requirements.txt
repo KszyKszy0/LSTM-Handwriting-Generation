@@ -7,3 +7,4 @@ argparse
 numpy
 svgwrite
 matplotlib
+openpyxl

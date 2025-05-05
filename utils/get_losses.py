@@ -1,8 +1,10 @@
 import os
+import time
 import re
 import csv
 import glob
 import argparse
+from create_excel import main as create_excel_main
 
 parser = argparse.ArgumentParser(description='Optional app description')
 
@@ -65,5 +67,7 @@ def main():
     
     print(f"Successfully extracted data from {len(model_data)} model files.")
     print(f"Data saved to {output_csv}")
+    
+    create_excel_main()
 
 main()

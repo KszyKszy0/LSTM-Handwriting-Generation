@@ -7,11 +7,8 @@ def main():
     # Ścieżki do plików
     dir = os.path.dirname(__file__)
 
-    csv_filename = os.path.join(dir, '/model_metrics.csv')
-    excel_filename = os.path.join(dir, '/model_metrics.xlsx')
-
-    csv_filename = csv_filename.resolve()
-    excel_filename = excel_filename.resolve()
+    csv_filename = os.path.join(dir, 'model_metrics.csv')
+    excel_filename = os.path.join(dir, 'model_metrics.xlsx')
 
     def clean_and_convert(value):
         return float(value.replace('\'', ''))

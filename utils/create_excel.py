@@ -1,14 +1,14 @@
 import csv
+import os
 from openpyxl import Workbook
 from openpyxl.chart import LineChart, Reference
-from openpyxl.utils import get_column_letter
-import pathlib
 
 def main():
     # Ścieżki do plików
-    current_dir = pathlib.Path(__file__).parent.resolve()
-    csv_filename = current_dir / "model_metrics.csv"
-    excel_filename = current_dir / "model_metrics.xlsx"
+    dir = os.path.dirname(__file__)
+
+    csv_filename = os.path.join(dir, '/model_metrics.csv')
+    excel_filename = os.path.join(dir, '/model_metrics.xlsx')
 
     csv_filename = csv_filename.resolve()
     excel_filename = excel_filename.resolve()

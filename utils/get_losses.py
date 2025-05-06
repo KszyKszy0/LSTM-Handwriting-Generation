@@ -4,14 +4,24 @@ import re
 import csv
 import glob
 import argparse
+import argcomplete
+from argcomplete.completers import DirectoriesCompleter
 from create_excel import main as create_excel_main
 
-parser = argparse.ArgumentParser(description='Optional app description')
+parser = argparse.ArgumentParser(description='Generate CSV+XLSX from model files')
 
 parser.add_argument('folder', type=str,
-                    help='Learning rate parameter')
+                    help='Folder containing model files').completer = DirectoriesCompleter()
 
+argcomplete.autocomplete(parser)
 args = parser.parse_args()
+
+def getDirs(__file__):
+    cwdir = os.path.abspath(os.getcwd())
+    cwdir += "/"
+    filedir = os.path.abspath(os.path.dirname(__file__))
+    filedir += "/"
+    return cwdir, filedir
 
 def extract_model_info(filename):
     """
@@ -31,11 +41,15 @@ def extract_model_info(filename):
         return None, None, None
 
 def main():
+    
+    userdir,filedir = getDirs(__file__)
     # Path to the directory containing model files
-    models_dir = "../models/" + args.folder
+    models_dir = os.path.abspath(userdir + args.folder)
+    
+    print(f"Processing files in directory: {models_dir}")
     
     # Output CSV file
-    output_csv = "model_metrics.csv"
+    output_csv = os.path.abspath(filedir + "../output/model_metrics.csv")
     
     # Get all .pth files in the directory
     model_files = glob.glob(os.path.join(models_dir, "*.pth"))
@@ -66,7 +80,7 @@ def main():
             writer.writerow(data)
     
     print(f"Successfully extracted data from {len(model_data)} model files.")
-    print(f"Data saved to {output_csv}")
+    print(f"CSV saved to {output_csv}")
     
     create_excel_main()
 

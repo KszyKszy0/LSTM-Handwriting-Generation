@@ -4,17 +4,21 @@ import numpy as np
 import svgwrite
 import model as model_def
 import matplotlib.pyplot as plt
+import os
 import argparse
+import argcomplete
+from argcomplete.completers import DirectoriesCompleter
 
 
-parser = argparse.ArgumentParser(description='Optional app description')
+parser = argparse.ArgumentParser(description='Generate handwriting from a trained model.')
 
 parser.add_argument('model', type=str,
-                    help='Path to model')
+                    help='Path to model').completer = DirectoriesCompleter()
 
 parser.add_argument('text', type=str,
                     help='text to generate')
 
+argcomplete.autocomplete(parser)
 args = parser.parse_args()
 
 # Hyperparameters
@@ -161,7 +165,9 @@ def plot_attention(attentions, text):
     # Add character labels on the y-axis.
     plt.yticks(np.arange(len(text)), list(text))
     plt.colorbar(label="Attention Weight")
-    plt.savefig("plot.png")
+    filename = os.path.abspath(filedir + "../output/plot.png")
+    plt.savefig(filename)
+    print(f"Plot saved to {filename}")
     plt.show()
     
 
@@ -202,13 +208,20 @@ def save_strokes_to_svg(strokes, filename, scale=1.0, stroke_width=2):
     if current_path != "":
         drawing.add(drawing.path(d=current_path, fill="none", stroke="black", stroke_width=stroke_width))
     drawing.save()
-    print(f"SVG saved to {filename}")
+    print(f"SVG saved to {os.path.abspath(filename)}")
 
+def getDirs(__file__):
+    cwdir = os.path.abspath(os.getcwd())
+    cwdir += "/"
+    filedir = os.path.abspath(os.path.dirname(__file__))
+    filedir += "/"
+    return cwdir, filedir
 
 # =========================
 # Example usage:
 # Uncomment and modify the following lines to load your model and generate handwriting.
-model_path = args.model       # path to your saved model file
+cwdir, filedir = getDirs(__file__)
+model_path = os.path.abspath(cwdir + args.model)       # path to your saved model file
 text_to_generate = args.text
 # load_model_and_generate(model_path, text_to_generate, seq_len=80, output_svg="handwriting.svg", temperature=0.95)
 
@@ -222,5 +235,5 @@ if model.char_to_idx is None:
         vocab = model_def.vocab
         model.char_to_idx = {c: i for i, c in enumerate(vocab)}
 strokes, attentions = generate_handwriting_with_attention(model, text_to_generate, seq_len=10_000, temperature=0.1)
-save_strokes_to_svg(strokes, "handwriting.svg")
+save_strokes_to_svg(strokes, filedir + "../output/handwriting.svg")
 plot_attention(attentions, text_to_generate)

@@ -4,6 +4,7 @@
 # core
 torch
 argparse
+argcomplete
 numpy
 svgwrite
 matplotlib

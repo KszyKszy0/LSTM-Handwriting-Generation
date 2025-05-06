@@ -7,25 +7,36 @@ import torch.optim as optim
 import torch.nn as nn
 from torch.utils.data import random_split
 import argparse
+import argcomplete
+from argcomplete.completers import DirectoriesCompleter, ChoicesCompleter
+
+
+def getDirs(__file__):
+    cwdir = os.path.abspath(os.getcwd())
+    cwdir += "/"
+    filedir = os.path.abspath(os.path.dirname(__file__))
+    filedir += "/"
+    return cwdir, filedir
 
 # =========================
 # 2. Args
 # =========================
 
-parser = argparse.ArgumentParser(description='Optional app description')
+parser = argparse.ArgumentParser(description='Training script for handwriting generation model.')
 
 parser.add_argument('lr', type=float,
                     help='Learning rate parameter')
 
 parser.add_argument('optim', type=str,
-                    help='adam or rms')
+                    help='adam or rms', choices=['adam', 'rms'])
 
 parser.add_argument('savefile', type=str,
-                    help='checkpoint save file')
+                    help='checkpoint save file').completer = DirectoriesCompleter()
 
 parser.add_argument('--opt_checkpoint', type=str,
-                    help='checkpoint to load')
+                    help='checkpoint to load').completer = DirectoriesCompleter()
 
+argcomplete.autocomplete(parser)
 args = parser.parse_args()
 
 
@@ -35,9 +46,11 @@ args = parser.parse_args()
 
 # Hyperparameters
 
-MODEL_PATH = args.savefile
+cwdir, filedir = getDirs(__file__)
+
+MODEL_PATH = os.path.abspath(cwdir + args.savefile)
 LEARNING_RATE = args.lr
-BATCH_SIZE = 64
+BATCH_SIZE = 48
 
 input_dim = 3          # (x, y, pen state)
 hidden_dim = 650       # hidden state size
@@ -45,6 +58,7 @@ num_mixtures = 10      # number of Gaussian mixtures in the MDN output
 window_mixtures = 4    # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
+logsFile = os.path.abspath(filedir + "../output/logi.txt")
 
 # Instantiate the model
 model = model_def.HandwritingRNN(input_dim, hidden_dim, num_mixtures, char_vocab_size, window_mixtures)
@@ -60,14 +74,14 @@ model.to(device)
 if args.optim == 'adam':
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
     print('Using adam optimizer with ',LEARNING_RATE)
-    f = open("logi.txt", "a")
+    f = open(logsFile, "a")
     f.write(f"Using adam optimizer with {LEARNING_RATE}\n")
     f.close()
 
 if args.optim == 'rms':
     optimizer = optim.RMSprop(model.parameters(), lr=LEARNING_RATE, centered=True)
     print('Using rmsprop optimizer with ',LEARNING_RATE)
-    f = open("logi.txt", "a")
+    f = open(logsFile, "a")
     f.write(f"Using rms optimizer with {LEARNING_RATE}\n")
     f.close()
 
@@ -84,15 +98,15 @@ def load_dicts(path):
     print('Loaded model from ',path)
     print('Epoch: ',starter_epoch)
 
-    f = open("logi.txt", "a")
+    f = open(logsFile, "a")
     f.write(f"Loaded model from {path}\n")
     f.write(f"Epoch: {starter_epoch}\n")
     f.close()
 
 if args.opt_checkpoint is not None:
-    full_path = args.opt_checkpoint
+    full_path = os.path.abspath(cwdir + args.opt_checkpoint)
     print("Model path: ", full_path)
-    f = open("logi.txt", "a")
+    f = open(logsFile, "a")
     f.write(f"Model path:  {full_path}\n")
     f.close()
     load_dicts(full_path)
@@ -107,9 +121,11 @@ def load_from_folders(folder_paths):
     
     for folder_path in folder_paths:
         # Ścieżka do pliku z tekstami dla bieżącego folderu
+        folder_path = os.path.abspath(filedir + folder_path)
         files_content = f"{folder_path}/files.txt"
         
         # Lista nazw plików z rozszerzeniem .svg z bieżącego folderu
+        print("Loading folder: ",files_content)
         svg_files = [f"{folder_path}/{file}" for file in os.listdir(folder_path) if file.endswith('.svg')]
         
         # Sortowanie plików SVG numerycznie
@@ -145,116 +161,118 @@ best_val_loss = float('inf')
 special_chars = set('ąężźćńłóśABCĆDEFGHIJKLŁMNOÓPQRSŚTUVWXYZŹŻ0123456789\'-!\"#$%&()*,./:;?@[]+<=>qQvVxX')
 
 raw_counts = {
-    'a': 10559,
-    'ą': 491,
-    'b': 1900,
-    'c': 4412,
-    'ć': 386,
-    'd': 3824,
-    'e': 10912,
-    'b': 1900,
-    'c': 4412,
-    'ć': 386,
-    'd': 3824,
-    'e': 10912,
-    'ę': 975,
-    'f': 266,
-    'g': 1413,
-    'h': 989,
-    'i': 9747,
-    'j': 2774,
-    'k': 3302,
-    'l': 3776,
-    'ł': 1068,
-    'm': 4288,
-    'n': 5710,
-    'ń': 153,
-    'o': 9177,
-    'ó': 428,
-    'p': 3171,
-    'q': 28,
-    'r': 4741,
-    's': 5944,
-    'ś': 476,
-    't': 4553,
-    'u': 2790,
-    'v': 78,
-    'w': 3999,
-    'x': 67,
-    'y': 4317,
-    'z': 7169,
-    'ź': 177,
-    'ż': 466,
-    'A': 136,
-    'B': 139,
-    'C': 420,
-    'Ć': 19,
-    'D': 161,
-    'E': 109,
-    'F': 117,
-    'G': 119,
-    'H': 119,
-    'I': 137,
-    'J': 297,
-    'K': 158,
-    'L': 122,
-    'Ł': 103,
-    'M': 456,
-    'N': 381,
-    'O': 222,
-    'Ó': 18,
-    'P': 405,
-    'Q': 14,
-    'R': 115,
-    'S': 232,
-    'Ś': 102,
-    'T': 601,
-    'U': 124,
-    'V': 20,
-    'W': 300,
-    'X': 20,
-    'Y': 78,
-    'Z': 229,
-    'Ź': 29,
-    'Ż': 102,
-    ' ': 16708,
-    '0': 248,
-    '1': 126,
-    '2': 93,
-    '3': 77,
-    '4': 58,
-    '5': 77,
-    '6': 56,
-    '7': 58,
-    '8': 60,
-    '9': 71,
-    '!': 77,
-    '"': 83,
-    '#': 26,
-    '%': 26,
-    '&': 26,
-    "'": 52,
-    '(': 25,
-    ')': 25,
-    '*': 26,
-    '+': 25,
-    ',': 293,
-    '-': 36,
-    '.': 200,
-    '/': 28,
-    ':': 37,
-    ';': 26,
-    '<': 25,
-    '=': 25,
-    '>': 25,
-    '?': 169,
-    '@': 25,
-    '[': 26,
-    ']': 26,
-    '$': 26
+    'a': 11762,
+    'ą': 984,
+    'b': 2153,
+    'c': 5030,
+    'ć': 688,
+    'd': 4312,
+    'e': 11981,
+    'ę': 1716,
+    'ą': 984,
+    'b': 2153,
+    'c': 5030,
+    'ć': 688,
+    'd': 4312,
+    'e': 11981,
+    'ę': 1716,
+    'f': 300,
+    'g': 1640,
+    'h': 1122,
+    'i': 11126,
+    'j': 3094,
+    'k': 3883,
+    'l': 4021,
+    'ł': 1897,
+    'm': 4848,
+    'n': 6327,
+    'ń': 238,
+    'o': 10236,
+    'ó': 780,
+    'p': 3655,
+    'q': 150,
+    'r': 5243,
+    's': 6660,
+    'ś': 903,
+    't': 5023,
+    'u': 3103,
+    'v': 150,
+    'w': 4555,
+    'x': 151,
+    'y': 4972,
+    'z': 7992,
+    'ź': 240,
+    'ż': 955,
+    'A': 177,
+    'B': 198,
+    'C': 510,
+    'Ć': 150,
+    'D': 202,
+    'E': 159,
+    'F': 154,
+    'G': 160,
+    'H': 155,
+    'I': 167,
+    'J': 335,
+    'K': 200,
+    'L': 162,
+    'Ł': 151,
+    'M': 563,
+    'N': 504,
+    'O': 260,
+    'Ó': 150,
+    'P': 502,
+    'Q': 150,
+    'R': 161,
+    'S': 278,
+    'Ś': 159,
+    'T': 650,
+    'U': 168,
+    'V': 155,
+    'W': 365,
+    'X': 152,
+    'Y': 150,
+    'Z': 287,
+    'Ź': 150,
+    'Ż': 158,
+    ' ': 19608,
+    '0': 250,
+    '1': 152,
+    '2': 152,
+    '3': 150,
+    '4': 150,
+    '5': 150,
+    '6': 150,
+    '7': 150,
+    '8': 152,
+    '9': 151,
+    '!': 169,
+    '"': 180,
+    '#': 150,
+    '%': 150,
+    '&': 150,
+    "'": 151,
+    '(': 150,
+    ')': 150,
+    '*': 150,
+    '+': 150,
+    ',': 507,
+    '-': 153,
+    '.': 679,
+    '/': 154,
+    ':': 151,
+    ';': 150,
+    '<': 150,
+    '=': 150,
+    '>': 150,
+    '?': 262,
+    '@': 150,
+    '[': 150,
+    ']': 150,
+    '$': 150
 }
 
-avg_count = 1212
+avg_count = 1445
 
 # Option A: simple inverse frequency
 char_weights = {c: 1.0 / cnt for c, cnt in raw_counts.items()}
@@ -397,7 +415,7 @@ for epoch in range(starter_epoch + 1, epochs):
         
         total_train_loss += loss.item()
 
-        f = open("logi.txt", "a")
+        f = open(logsFile, "a")
         print(f"Batch [{i + 1}/{len(train_loader)}], Loss: {loss.item():.4f}")
         f.write(f"Batch [{i + 1}/{len(train_loader)}], Loss: {loss.item():.4f}\n")
         f.close()
@@ -409,7 +427,7 @@ for epoch in range(starter_epoch + 1, epochs):
     
     avg_train_loss = total_train_loss / len(train_loader)
 
-    f = open("logi.txt", "a")
+    f = open(logsFile, "a")
     print(f"Epoch [{epoch}/{epochs}], Training Loss: {avg_train_loss:.4f}")
     f.write(f"Epoch [{epoch}/{epochs}], Training Loss: {avg_train_loss:.4f}\n")
     f.close()
@@ -446,7 +464,7 @@ for epoch in range(starter_epoch + 1, epochs):
     end_time = time.time()
     elapsed_time = end_time - start_time
 
-    f = open("logi.txt", "a")
+    f = open(logsFile, "a")
     print(f"Epoch [{epoch}/{epochs}], Validation Loss: {avg_val_loss:.4f}")
     print(f"Time: {elapsed_time:.2f} seconds")
     f.write(f"Epoch [{epoch}/{epochs}], Validation Loss: {avg_val_loss:.4f}\n")

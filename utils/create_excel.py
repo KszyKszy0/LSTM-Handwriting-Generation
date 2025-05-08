@@ -1,6 +1,7 @@
 import csv
 import os
 from openpyxl import Workbook
+from openpyxl.styles import Alignment
 from openpyxl.chart import LineChart, Reference
 
 def getDirs(__file__):
@@ -8,7 +9,7 @@ def getDirs(__file__):
     filedir = os.path.abspath(os.path.dirname(__file__) + "/../output/")
     return cwdir, filedir
     
-def main():
+def main(printLogs=True):
     
     # Ścieżki do plików
     userdir,filedir = getDirs(__file__)
@@ -28,6 +29,10 @@ def main():
     wb = Workbook()
     ws = wb.active
     ws.title = "Wyniki"
+    
+    kolumny = ['C', 'D', 'E', 'F', 'G']
+    for kolumna in kolumny:
+        ws.column_dimensions[kolumna].number_format = "0.00000"
 
 
     for index,row in enumerate(rows):
@@ -85,7 +90,7 @@ def main():
 
     # Zapisz plik Excel
     wb.save(excel_filename)
-    print(f"XLSX saved to {excel_filename}")
+    print(f"XLSX saved to {excel_filename}") if printLogs else None
     
 if __name__ == "__main__":
     main()

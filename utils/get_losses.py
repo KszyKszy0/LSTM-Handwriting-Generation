@@ -1,4 +1,4 @@
-import os
+import os, sys
 import time
 import re
 import csv
@@ -6,15 +6,22 @@ import glob
 import argparse
 import argcomplete
 from argcomplete.completers import DirectoriesCompleter
-from create_excel import main as create_excel_main
 
-parser = argparse.ArgumentParser(description='Generate CSV+XLSX from model files')
+# Dodaj katalog główny projektu do PYTHONPATH
+PROJECT_ROOT = os.path.abspath(__file__+"/../../")
+sys.path.insert(0, PROJECT_ROOT)
+from utils.create_excel import main as create_excel_main
 
-parser.add_argument('folder', type=str,
-                    help='Folder containing model files').completer = DirectoriesCompleter()
+def getargs():
+    parser = argparse.ArgumentParser(description='Generate CSV+XLSX from model files')
 
-argcomplete.autocomplete(parser)
-args = parser.parse_args()
+    parser.add_argument('folder', type=str,
+                        help='Folder containing model files').completer = DirectoriesCompleter()
+
+    argcomplete.autocomplete(parser)
+    args = parser.parse_args()
+    userdir,filedir = getDirs(__file__)
+    return os.path.abspath(userdir + args.folder)
 
 def getDirs(__file__):
     cwdir = os.path.abspath(os.getcwd())
@@ -40,13 +47,21 @@ def extract_model_info(filename):
     else:
         return None, None, None
 
-def main():
+    """
+    @param folder: abs path
+    """
+def main(folder, printLog=True):
+    """Main function to process model files and generate a CSV file with metrics.
+
+    Args:
+        folder (string(path)): Abs path to the folder containing model files.
+    """
     
-    userdir,filedir = getDirs(__file__)
     # Path to the directory containing model files
-    models_dir = os.path.abspath(userdir + args.folder)
+    models_dir = folder
+    userdir,filedir = getDirs(__file__)
     
-    print(f"Processing files in directory: {models_dir}")
+    print(f"Processing files in directory: {models_dir}") if printLog else None
     
     # Output CSV file
     output_csv = os.path.abspath(filedir + "../output/model_metrics.csv")
@@ -78,10 +93,13 @@ def main():
         writer.writeheader()
         for data in model_data:
             writer.writerow(data)
+    if printLog:
+        print(f"Successfully extracted data from {len(model_data)} model files.")
+        print(f"CSV saved to {output_csv}")        
     
-    print(f"Successfully extracted data from {len(model_data)} model files.")
-    print(f"CSV saved to {output_csv}")
-    
-    create_excel_main()
+    create_excel_main(printLogs=printLog)
+    print(f"Successfully saved CSV and XLSX [{len(model_data)}]") if not printLog else None
 
-main()
+if __name__ == "__main__":
+    folder = getargs()
+    main(folder)

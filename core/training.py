@@ -2,6 +2,7 @@ import model as model_def
 import torch
 import data_prep as data
 import os
+import sys
 import time
 import torch.optim as optim
 import torch.nn as nn
@@ -9,6 +10,13 @@ from torch.utils.data import random_split
 import argparse
 import argcomplete
 from argcomplete.completers import DirectoriesCompleter, ChoicesCompleter
+
+
+# Dodaj katalog główny projektu do PYTHONPATH
+PROJECT_ROOT = os.path.abspath(__file__+"/../../")
+print("Project root: ", PROJECT_ROOT)
+sys.path.insert(0, PROJECT_ROOT)
+from utils.get_losses import main as get_losses_main
 
 
 def getDirs(__file__):
@@ -53,7 +61,7 @@ LEARNING_RATE = args.lr
 BATCH_SIZE = 48
 
 input_dim = 3          # (x, y, pen state)
-hidden_dim = 650       # hidden state size
+hidden_dim = 750       # hidden state size
 num_mixtures = 10      # number of Gaussian mixtures in the MDN output
 window_mixtures = 4    # number of mixtures for the window (attention) mechanism
 epochs = 10000
@@ -338,18 +346,18 @@ for epoch in range(starter_epoch + 1, epochs):
         # scaled_losses = masked_losses * weights_per_timestep
 
         # Build a tensor of W for each sample
-        W = torch.ones(batch_size, device=device, dtype=torch.float32)
+        # W = torch.ones(batch_size, device=device, dtype=torch.float32)
 
-        for j, text in enumerate(text):
-            # sum weights for each character, ignoring padding; then average
-            weights = [ char_weights.get(ch, 1.0) for ch in text ]
-            if len(weights) > 0:
-                W[j] = sum(weights) / len(weights)
-            else:
-                W[j] = 1.0
+        # for j, text in enumerate(text):
+        #     # sum weights for each character, ignoring padding; then average
+        #     weights = [ char_weights.get(ch, 1.0) for ch in text ]
+        #     if len(weights) > 0:
+        #         W[j] = sum(weights) / len(weights)
+        #     else:
+        #         W[j] = 1.0
             
-            if(len(text) > 30):
-                W[j] += 1
+        #     if(len(text) > 30):
+        #         W[j] += 1
             
             
             # print(text,W)
@@ -357,8 +365,8 @@ for epoch in range(starter_epoch + 1, epochs):
 
 
         # Expand to [batch_size, seq_len] and apply
-        W_expanded = W.unsqueeze(1)            # [batch_size, 1]
-        scaled_losses = masked_losses * W_expanded
+        # W_expanded = W.unsqueeze(1)            # [batch_size, 1]
+        # scaled_losses = masked_losses * W_expanded
         
         # # Count special characters in each text and use it as a multiplier
         # scale_factors = torch.ones(len(text), device=device)
@@ -367,12 +375,12 @@ for epoch in range(starter_epoch + 1, epochs):
         #     if count > 0:
 
         # Final average loss over non-padded tokens
-        num_non_padded = padding_mask.float().sum() + 1e-8
-        loss_mdn = scaled_losses.sum() / num_non_padded
+        # num_non_padded = padding_mask.float().sum() + 1e-8
+        # loss_mdn = scaled_losses.sum() / num_non_padded
 
         # Compute the masked average (sum of masked losses divided by count of non-padded elements)
-        # num_non_padded = padding_mask.float().sum() + 1e-8  # Add small epsilon to avoid division by zero
-        # loss_mdn = masked_losses.sum() / num_non_padded
+        num_non_padded = padding_mask.float().sum() + 1e-8  # Add small epsilon to avoid division by zero
+        loss_mdn = masked_losses.sum() / num_non_padded
 
         # Extract parameters after exponential
         
@@ -482,6 +490,9 @@ for epoch in range(starter_epoch + 1, epochs):
             'epoch': epoch,
             'val_loss': avg_val_loss,
             }, MODEL_PATH + f"/epoch{epoch}_train{avg_train_loss:.4f}_val{avg_val_loss:.4f}.pth")
+    
+    if(epoch % 10 == 0):
+        get_losses_main(os.path.abspath(MODEL_PATH), printLog=False)
     
     # Save best model separately
         if avg_val_loss < best_val_loss:

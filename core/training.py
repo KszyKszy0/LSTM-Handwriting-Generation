@@ -59,11 +59,11 @@ args = parser.parse_args()
 
 cwdir, filedir = getDirs(__file__)
 
+load_dotenv()
+
 MODEL_PATH = os.path.abspath(cwdir + args.savefile)
 LEARNING_RATE = args.lr
-BATCH_SIZE = 46
-
-load_dotenv()
+BATCH_SIZE = int(os.getenv("BATCH_SIZE"))
 
 input_dim = 3          # (x, y, pen state)
 hidden_dim = int(os.getenv("hidden_dim"))               # hidden state size

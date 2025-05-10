@@ -10,6 +10,7 @@ import argcomplete
 from argcomplete.completers import DirectoriesCompleter
 import webbrowser
 from dotenv import load_dotenv
+import data_prep as data
 
 
 parser = argparse.ArgumentParser(description='Generate handwriting from a trained model.')
@@ -178,6 +179,9 @@ def plot_attention(attentions, text):
 # =========================
 # 4. Function to Save Generated Strokes as an SVG File
 # =========================
+# =========================
+# 4. Function to Save Generated Strokes as an SVG File
+# =========================
 def save_strokes_to_svg(strokes, filename, scale=1.0, stroke_width=2):
     """
     Save a list of strokes to an SVG file.
@@ -189,14 +193,22 @@ def save_strokes_to_svg(strokes, filename, scale=1.0, stroke_width=2):
       stroke_width: Width of the stroke in the SVG.
     """
     # Convert stroke deltas to absolute coordinates.
-    x, y = 50, 50
+    x, y = 100, 100
     drawing = svgwrite.Drawing(filename, profile='tiny')
     current_path = ""
+    abs_points = []
     
     for dx, dy, pen in strokes:
         # Update absolute positions.
         x += dx
         y += dy
+        abs_points.append((x, y, pen))
+
+    new_cords = data.align(np.array(abs_points))
+
+    for x, y, pen in new_cords:
+        x += 50
+        y += 50
         # When pen is down (pen < 0.5), continue drawing.
         if pen < 0.5:
             if current_path == "":
@@ -213,7 +225,6 @@ def save_strokes_to_svg(strokes, filename, scale=1.0, stroke_width=2):
         drawing.add(drawing.path(d=current_path, fill="none", stroke="black", stroke_width=stroke_width))
     drawing.save()
     print(f"SVG saved to {filename}")
-    webbrowser.open(filename)
 
 def getDirs(__file__):
     cwdir = os.path.abspath(os.getcwd())

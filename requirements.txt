@@ -9,3 +9,4 @@ numpy
 svgwrite
 matplotlib
 openpyxl
+python-dotenv

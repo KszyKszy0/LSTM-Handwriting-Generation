@@ -12,6 +12,7 @@ from torch.utils.data import random_split
 import argparse
 import argcomplete
 from argcomplete.completers import DirectoriesCompleter, ChoicesCompleter
+from dotenv import load_dotenv
 
 
 # Dodaj katalog główny projektu do PYTHONPATH
@@ -62,10 +63,12 @@ MODEL_PATH = os.path.abspath(cwdir + args.savefile)
 LEARNING_RATE = args.lr
 BATCH_SIZE = 46
 
+load_dotenv()
+
 input_dim = 3          # (x, y, pen state)
-hidden_dim = os.environ["hidden_dim"]               # hidden state size
-num_mixtures = os.environ["num_mixtures"]           # number of Gaussian mixtures in the MDN output
-window_mixtures = os.environ["window_mixtures"]     # number of mixtures for the window (attention) mechanism
+hidden_dim = int(os.getenv("hidden_dim"))               # hidden state size
+num_mixtures = int(os.getenv("num_mixtures"))           # number of Gaussian mixtures in the MDN output
+window_mixtures = int(os.getenv("window_mixtures"))     # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
 logsFile = os.path.abspath(filedir + "../output/logi.txt")

@@ -9,6 +9,7 @@ import argparse
 import argcomplete
 from argcomplete.completers import DirectoriesCompleter
 import webbrowser
+from dotenv import load_dotenv
 
 
 parser = argparse.ArgumentParser(description='Generate handwriting from a trained model.')
@@ -22,11 +23,13 @@ parser.add_argument('text', type=str,
 argcomplete.autocomplete(parser)
 args = parser.parse_args()
 
+load_dotenv()
+
 # Hyperparameters
 input_dim = 3          # (x, y, pen state)
-hidden_dim = os.environ["hidden_dim"]               # hidden state size
-num_mixtures = os.environ["num_mixtures"]           # number of Gaussian mixtures in the MDN output
-window_mixtures = os.environ["window_mixtures"]     # number of mixtures for the window (attention) mechanism
+hidden_dim = int(os.getenv("hidden_dim"))               # hidden state size
+num_mixtures = int(os.getenv("num_mixtures"))           # number of Gaussian mixtures in the MDN output
+window_mixtures = int(os.getenv("window_mixtures"))     # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
 

@@ -179,9 +179,6 @@ def plot_attention(attentions, text):
 # =========================
 # 4. Function to Save Generated Strokes as an SVG File
 # =========================
-# =========================
-# 4. Function to Save Generated Strokes as an SVG File
-# =========================
 def save_strokes_to_svg(strokes, filename, scale=1.0, stroke_width=2):
     """
     Save a list of strokes to an SVG file.
@@ -225,6 +222,7 @@ def save_strokes_to_svg(strokes, filename, scale=1.0, stroke_width=2):
         drawing.add(drawing.path(d=current_path, fill="none", stroke="black", stroke_width=stroke_width))
     drawing.save()
     print(f"SVG saved to {filename}")
+    webbrowser.open(filename)
 
 def getDirs(__file__):
     cwdir = os.path.abspath(os.getcwd())

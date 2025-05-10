@@ -1,0 +1,17 @@
+[project]
+name = "architecture-tweak"
+version = "0.1.0"
+description = "AI Handwriting Generation"
+requires-python = ">=3.12"
+dependencies = [
+    "argcomplete>=3.6.2",
+    "argparse>=1.4.0",
+    "bs4>=0.0.2",
+    "matplotlib>=3.10.1",
+    "mplcursors>=0.6",
+    "openpyxl>=3.1.5",
+    "requests>=2.32.3",
+    "svgwrite>=1.4.3",
+    "textstat>=0.7.5",
+    "unidecode>=1.4.0",
+]

@@ -24,9 +24,9 @@ args = parser.parse_args()
 
 # Hyperparameters
 input_dim = 3          # (x, y, pen state)
-hidden_dim = 750       # hidden state size
-num_mixtures = 10      # number of Gaussian mixtures in the MDN output
-window_mixtures = 4    # number of mixtures for the window (attention) mechanism
+hidden_dim = os.environ["hidden_dim"]               # hidden state size
+num_mixtures = os.environ["num_mixtures"]           # number of Gaussian mixtures in the MDN output
+window_mixtures = os.environ["window_mixtures"]     # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
 

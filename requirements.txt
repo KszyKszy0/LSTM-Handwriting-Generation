@@ -2,7 +2,7 @@
 -r data/requirements.txt
 
 # core
-torch
+# torch -> rocm
 argparse
 argcomplete
 numpy

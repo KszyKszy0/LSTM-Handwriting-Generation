@@ -1,4 +1,5 @@
 import os, sys
+from pathlib import Path
 import time
 import re
 import csv
@@ -8,8 +9,7 @@ import argcomplete
 from argcomplete.completers import DirectoriesCompleter
 
 # Dodaj katalog główny projektu do PYTHONPATH
-PROJECT_ROOT = os.path.abspath(__file__+"/../../")
-sys.path.insert(0, PROJECT_ROOT)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from utils.create_excel import main as create_excel_main
 
 def getargs():

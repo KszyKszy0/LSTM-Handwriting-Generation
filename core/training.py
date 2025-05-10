@@ -2,7 +2,9 @@ import model as model_def
 import torch
 import data_prep as data
 import os
+import re
 import sys
+from pathlib import Path
 import time
 import torch.optim as optim
 import torch.nn as nn
@@ -13,9 +15,7 @@ from argcomplete.completers import DirectoriesCompleter, ChoicesCompleter
 
 
 # Dodaj katalog główny projektu do PYTHONPATH
-PROJECT_ROOT = os.path.abspath(__file__+"/../../")
-print("Project root: ", PROJECT_ROOT)
-sys.path.insert(0, PROJECT_ROOT)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from utils.get_losses import main as get_losses_main
 
 
@@ -44,6 +44,8 @@ parser.add_argument('savefile', type=str,
 parser.add_argument('--opt_checkpoint', type=str,
                     help='checkpoint to load').completer = DirectoriesCompleter()
 
+parser.add_argument("--resume", action="store_true",)
+
 argcomplete.autocomplete(parser)
 args = parser.parse_args()
 
@@ -58,12 +60,12 @@ cwdir, filedir = getDirs(__file__)
 
 MODEL_PATH = os.path.abspath(cwdir + args.savefile)
 LEARNING_RATE = args.lr
-BATCH_SIZE = 48
+BATCH_SIZE = 46
 
 input_dim = 3          # (x, y, pen state)
-hidden_dim = 750       # hidden state size
-num_mixtures = 10      # number of Gaussian mixtures in the MDN output
-window_mixtures = 4    # number of mixtures for the window (attention) mechanism
+hidden_dim = os.environ["hidden_dim"]               # hidden state size
+num_mixtures = os.environ["num_mixtures"]           # number of Gaussian mixtures in the MDN output
+window_mixtures = os.environ["window_mixtures"]     # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
 logsFile = os.path.abspath(filedir + "../output/logi.txt")
@@ -110,9 +112,27 @@ def load_dicts(path):
     f.write(f"Loaded model from {path}\n")
     f.write(f"Epoch: {starter_epoch}\n")
     f.close()
+    
+if args.resume is not None:
+    files = os.listdir(MODEL_PATH)
+    
+    regex = r"epoch(\d+)_.*"
+    filtered_files = [(int(re.match(regex, file).group(1)), file) for file in files if re.match(regex, file)]
+
+    if filtered_files:
+        highest_epoch_file = max(filtered_files, key=lambda x: x[0])[1]
+        print("File with the highest epoch:", highest_epoch_file)
+        args.opt_checkpoint = highest_epoch_file
+    else:
+        print("No matching files found.")
+    
+    
 
 if args.opt_checkpoint is not None:
-    full_path = os.path.abspath(cwdir + args.opt_checkpoint)
+    if args.resume is not None:
+        full_path = os.path.abspath(MODEL_PATH + "/" + args.opt_checkpoint)
+    else:
+        full_path = os.path.abspath(cwdir + args.opt_checkpoint)
     print("Model path: ", full_path)
     f = open(logsFile, "a")
     f.write(f"Model path:  {full_path}\n")
@@ -385,31 +405,31 @@ for epoch in range(starter_epoch + 1, epochs):
         # Extract parameters after exponential
         
         # [Batch_size, seq_len, window_mixtures, (a,b,k)]  
-        log_kappa = window_params[:, :, :, 0]
-        log_alpha = window_params[:, :, :, 1]
-        log_beta = window_params[:, :, :, 2]
+        # log_kappa = window_params[:, :, :, 0]
+        # log_alpha = window_params[:, :, :, 1]
+        # log_beta = window_params[:, :, :, 2]
 
-        # # Define thresholds
-        alpha_min, alpha_max = 1, 10
-        beta_min, beta_max = 0.4, 10 
-        kappa_min, kappa_max = 0.03, 0.05 
+        # # # Define thresholds
+        # alpha_min, alpha_max = 1, 10
+        # beta_min, beta_max = 0.4, 10 
+        # kappa_min, kappa_max = 0.03, 0.05 
 
-        # # Compute penalties
-        alpha_penalty = (torch.relu(alpha_min - log_alpha) + torch.relu(log_alpha - alpha_max)) * padding_mask.float().unsqueeze(-1) 
-        beta_penalty = (torch.relu(beta_min - log_beta) + torch.relu(log_beta - beta_max)) * padding_mask.float().unsqueeze(-1)
+        # # # Compute penalties
+        # alpha_penalty = (torch.relu(alpha_min - log_alpha) + torch.relu(log_alpha - alpha_max)) * padding_mask.float().unsqueeze(-1) 
+        # beta_penalty = (torch.relu(beta_min - log_beta) + torch.relu(log_beta - beta_max)) * padding_mask.float().unsqueeze(-1)
 
-        # # Sum the penalties to get a loss term
-        penalizing_loss = (alpha_penalty.sum() + beta_penalty.sum()) / num_non_padded
+        # # # Sum the penalties to get a loss term
+        # penalizing_loss = (alpha_penalty.sum() + beta_penalty.sum()) / num_non_padded
 
-        # # Compute kappa penalty with proper masking
-        kappa_penalty = (torch.relu(kappa_min - log_kappa) + torch.relu(log_kappa - kappa_max)) * padding_mask.float().unsqueeze(-1)
+        # # # Compute kappa penalty with proper masking
+        # kappa_penalty = (torch.relu(kappa_min - log_kappa) + torch.relu(log_kappa - kappa_max)) * padding_mask.float().unsqueeze(-1)
 
-        penalizing_loss += (kappa_penalty.sum() / num_non_padded)
+        # penalizing_loss += (kappa_penalty.sum() / num_non_padded)
 
-        # Total loss
-        loss = loss_mdn + penalizing_loss
+        # # Total loss
+        # loss = loss_mdn + penalizing_loss
 
-        # loss = loss_mdn
+        loss = loss_mdn
         
         # Backward pass and optimization
         loss.backward()

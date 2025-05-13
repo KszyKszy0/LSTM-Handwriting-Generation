@@ -47,6 +47,8 @@ parser.add_argument('--opt_checkpoint', type=str,
 
 parser.add_argument("--resume", action="store_true",)
 
+parser.add_argument("--batch_size", type=int)
+
 argcomplete.autocomplete(parser)
 args = parser.parse_args()
 
@@ -141,6 +143,13 @@ if args.opt_checkpoint is not None:
     f.write(f"Model path:  {full_path}\n")
     f.close()
     load_dicts(full_path)
+    
+if args.batch_size is not None:
+    BATCH_SIZE = args.batch_size
+    print("Batch size: ",BATCH_SIZE)
+    f = open(logsFile, "a")
+    f.write(f"Batch size: {BATCH_SIZE}\n")
+    f.close()
 
 # Obsługa wielu folderów
 folder_paths = ["../data/output", "../data/mwoutput", "../data/poloutput", "../data/hibru"]  # Lista ścieżek do folderów
@@ -512,7 +521,7 @@ for epoch in range(starter_epoch + 1, epochs):
             # 'scheduler_state_dict': scheduler.state_dict(),  # Also save scheduler state
             'epoch': epoch,
             'val_loss': avg_val_loss,
-            }, MODEL_PATH + f"/epoch{epoch}_train{avg_train_loss:.4f}_val{avg_val_loss:.4f}.pth")
+            }, MODEL_PATH + f"/epoch{epoch}_train{avg_train_loss:.4f}_val{avg_val_loss:.4f}_batch{BATCH_SIZE}.pth")
     
     if(epoch % 10 == 0):
         get_losses_main(os.path.abspath(MODEL_PATH), printLog=False)

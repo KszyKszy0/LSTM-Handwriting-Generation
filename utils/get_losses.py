@@ -33,19 +33,23 @@ def getDirs(__file__):
 def extract_model_info(filename):
     """
     Extract epoch number, train value, and validation value from a model filename.
-    Example filename: "epoch597_train2.3587_val2.3990.pth"
+    Example filename: "epoch597_train2.3587_val2.3990.pth" or "epoch597_train-2.3587_val-2.3990_batch32.pth"
     """
     # Create a regex pattern to match the filename components
-    pattern = r"epoch(\d+)_train([-]?\d+\.\d+)_val([-]?\d+\.\d+)\.pth"
+    pattern = r"epoch(\d+)_train([-]?\d+\.\d+)_val([-]?\d+\.\d+)(?:_batch(\d+))?\.pth"
     match = re.match(pattern, os.path.basename(filename))
     
     if match:
         epoch = int(match.group(1))
         train_value = float(match.group(2))
         val_value = float(match.group(3))
-        return epoch, train_value, val_value
+        if(match.group(4) is not None):
+            batch_size = int(match.group(4))
+        else:
+            batch_size = 0
+        return epoch, train_value, val_value, batch_size
     else:
-        return None, None, None
+        return None, None, None, None
 
     """
     @param folder: abs path
@@ -72,12 +76,13 @@ def main(folder, printLog=True):
     # Extract information from each file and store in a list
     model_data = []
     for model_file in model_files:
-        epoch, train_value, val_value = extract_model_info(model_file)
+        epoch, train_value, val_value, batch_size = extract_model_info(model_file)
         # print(epoch, train_value, val_value)
         if epoch is not None:
             model_data.append({
                 'filename': os.path.basename(model_file),
                 'epoch': epoch,
+                'batch_size': batch_size,
                 'train_loss': train_value,
                 'val_loss': val_value
             })
@@ -87,7 +92,7 @@ def main(folder, printLog=True):
     
     # Write the data to a CSV file
     with open(output_csv, 'w', newline='') as csvfile:
-        fieldnames = ['filename', 'epoch', 'train_loss', 'val_loss']
+        fieldnames = ['filename', 'epoch', 'batch_size', 'train_loss', 'val_loss']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         
         writer.writeheader()

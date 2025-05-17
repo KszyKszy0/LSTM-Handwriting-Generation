@@ -1,3 +1,4 @@
+import requests
 import model as model_def
 import torch
 import data_prep as data
@@ -74,6 +75,7 @@ window_mixtures = int(os.getenv("window_mixtures"))     # number of mixtures for
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
 logsFile = os.path.abspath(filedir + "../output/logi.txt")
+website_url = f'https://{os.getenv("username")}:{os.getenv("password")}@ai-dashboard.d0d0.ovh'
 
 # Instantiate the model
 model = model_def.HandwritingRNN(input_dim, hidden_dim, num_mixtures, char_vocab_size, window_mixtures)
@@ -152,7 +154,8 @@ if args.batch_size is not None:
     f.close()
 
 # Obsługa wielu folderów
-folder_paths = ["../data/output", "../data/mwoutput", "../data/poloutput", "../data/hibru"]  # Lista ścieżek do folderów
+# folder_paths = ["../data/output", "../data/mwoutput", "../data/poloutput", "../data/hibru"]  # Lista ścieżek do folderów
+folder_paths = ["../data/output", "../data/mwoutput", "../data/poloutput"]  # Lista ścieżek do folderów
 
 # Funkcja do wczytywania danych z wielu folderów
 def load_from_folders(folder_paths):
@@ -416,32 +419,35 @@ for epoch in range(starter_epoch + 1, epochs):
 
         # Extract parameters after exponential
         
-        # [Batch_size, seq_len, window_mixtures, (a,b,k)]  
-        # log_kappa = window_params[:, :, :, 0]
-        # log_alpha = window_params[:, :, :, 1]
-        # log_beta = window_params[:, :, :, 2]
+        # [Batch_size, seq_len, window_mixtures, (a,b,k)] 
+        if(epoch < 50): 
+            log_kappa = window_params[:, :, :, 0]
+            log_alpha = window_params[:, :, :, 1]
+            log_beta = window_params[:, :, :, 2]
 
-        # # # Define thresholds
-        # alpha_min, alpha_max = 1, 10
-        # beta_min, beta_max = 0.4, 10 
-        # kappa_min, kappa_max = 0.03, 0.05 
+            # # Define thresholds
+            alpha_min, alpha_max = 1, 10
+            beta_min, beta_max = 0.4, 10 
+            kappa_min, kappa_max = 0.03, 0.05 
 
-        # # # Compute penalties
-        # alpha_penalty = (torch.relu(alpha_min - log_alpha) + torch.relu(log_alpha - alpha_max)) * padding_mask.float().unsqueeze(-1) 
-        # beta_penalty = (torch.relu(beta_min - log_beta) + torch.relu(log_beta - beta_max)) * padding_mask.float().unsqueeze(-1)
+            # # Compute penalties
+            alpha_penalty = (torch.relu(alpha_min - log_alpha) + torch.relu(log_alpha - alpha_max)) * padding_mask.float().unsqueeze(-1) 
+            beta_penalty = (torch.relu(beta_min - log_beta) + torch.relu(log_beta - beta_max)) * padding_mask.float().unsqueeze(-1)
 
-        # # # Sum the penalties to get a loss term
-        # penalizing_loss = (alpha_penalty.sum() + beta_penalty.sum()) / num_non_padded
+            # # Sum the penalties to get a loss term
+            penalizing_loss = (alpha_penalty.sum() + beta_penalty.sum()) / num_non_padded
 
-        # # # Compute kappa penalty with proper masking
-        # kappa_penalty = (torch.relu(kappa_min - log_kappa) + torch.relu(log_kappa - kappa_max)) * padding_mask.float().unsqueeze(-1)
+            # # Compute kappa penalty with proper masking
+            kappa_penalty = (torch.relu(kappa_min - log_kappa) + torch.relu(log_kappa - kappa_max)) * padding_mask.float().unsqueeze(-1)
 
-        # penalizing_loss += (kappa_penalty.sum() / num_non_padded)
+            penalizing_loss += (kappa_penalty.sum() / num_non_padded)
 
-        # # Total loss
-        # loss = loss_mdn + penalizing_loss
-
-        loss = loss_mdn
+            # Total loss
+            loss = loss_mdn + penalizing_loss
+            
+        else:
+            # If the epoch is less than 50, use only the MDN loss
+            loss = loss_mdn
         
         # Backward pass and optimization
         loss.backward()
@@ -514,7 +520,7 @@ for epoch in range(starter_epoch + 1, epochs):
     # scheduler.step(avg_val_loss)
     
     # Save model checkpoint including both training and validation loss.
-    if(epoch % 1 == 0):
+    if((epoch % 1 == 0 and epoch < 30) or epoch % 2 == 0):
         torch.save({
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
@@ -525,14 +531,37 @@ for epoch in range(starter_epoch + 1, epochs):
     
     if(epoch % 10 == 0):
         get_losses_main(os.path.abspath(MODEL_PATH), printLog=False)
+        
+    #save to website
+    if(epoch % 1 == 0):
+        train_loss = round(avg_train_loss, 4)
+        val_loss = round(avg_val_loss, 4)
+        temp_time = round(elapsed_time, 2)
+        
+        payload = {
+            "model_name": os.getenv("NAME"),
+            "epoch": epoch,
+            "train_loss": train_loss,
+            "val_loss": val_loss,
+            "time": temp_time
+        }
+
+        response = requests.post(website_url+"/update", json=payload)
+
+        if response.status_code != 200:
+            print(f"Błąd: {response.status_code}")
+            print(response.text)
+      
+    # if(epoch % 50 == 0):
+    #     delete_files_main()
     
     # Save best model separately
-        if avg_val_loss < best_val_loss:
-            best_val_loss = avg_val_loss
-            torch.save({
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    # 'scheduler_state_dict': scheduler.state_dict(),
-                    'epoch': epoch,
-                    'val_loss': avg_val_loss,
-                    }, MODEL_PATH + f"/best_model.pth")
+    if avg_val_loss < best_val_loss:
+        best_val_loss = avg_val_loss
+        torch.save({
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                # 'scheduler_state_dict': scheduler.state_dict(),
+                'epoch': epoch,
+                'val_loss': avg_val_loss,
+                }, MODEL_PATH + f"/best_model.pth")

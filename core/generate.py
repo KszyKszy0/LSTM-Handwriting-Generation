@@ -11,6 +11,7 @@ from argcomplete.completers import DirectoriesCompleter
 import webbrowser
 from dotenv import load_dotenv
 import data_prep as data
+import requests
 
 
 parser = argparse.ArgumentParser(description='Generate handwriting from a trained model.')
@@ -231,6 +232,16 @@ def getDirs(__file__):
     filedir += "/"
     return cwdir, filedir
 
+def sendImg():
+    filename = os.path.abspath(filedir + "../output/handwriting.svg")
+    url = f'http://127.0.0.1:5000/api/upload-image'
+    with open(filename, 'rb') as f:
+        files = {'image': f}
+        data = {'model_name': os.getenv('NAME'), "epoch": 0}
+        response = requests.post(url, files=files, data=data)
+        print("Status:", response.status_code)
+        print("Odpowiedź:", response.text)
+
 # =========================
 # Example usage:
 # Uncomment and modify the following lines to load your model and generate handwriting.
@@ -251,4 +262,5 @@ if model.char_to_idx is None:
 strokes, attentions = generate_handwriting_with_attention(model, text_to_generate, seq_len=10_000, temperature=0.1)
 svgpath = os.path.abspath(filedir + "../output/handwriting.svg")
 save_strokes_to_svg(strokes, svgpath)
+# sendImg()
 plot_attention(attentions, text_to_generate)

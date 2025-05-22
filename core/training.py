@@ -426,8 +426,8 @@ for epoch in range(starter_epoch + 1, epochs):
             log_beta = window_params[:, :, :, 2]
 
             # # Define thresholds
-            alpha_min, alpha_max = 1, 10
-            beta_min, beta_max = 0.4, 10 
+            alpha_min, alpha_max = 9, 11
+            beta_min, beta_max = 3, 10 
             kappa_min, kappa_max = 0.03, 0.05 
 
             # # Compute penalties

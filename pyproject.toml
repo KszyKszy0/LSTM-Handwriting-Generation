@@ -10,6 +10,7 @@ dependencies = [
     "matplotlib>=3.10.1",
     "mplcursors>=0.6",
     "openpyxl>=3.1.5",
+    "pandas>=2.2.3",
     "python-dotenv>=1.1.0",
     "requests>=2.32.3",
     "svgwrite>=1.4.3",

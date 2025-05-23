@@ -543,7 +543,8 @@ for epoch in range(starter_epoch + 1, epochs):
             "epoch": epoch,
             "train_loss": train_loss,
             "val_loss": val_loss,
-            "time": temp_time
+            "time": temp_time,
+            "batch_size": BATCH_SIZE
         }
 
         response = requests.post(website_url+"/update", json=payload)

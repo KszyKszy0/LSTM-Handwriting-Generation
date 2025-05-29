@@ -19,6 +19,8 @@ parser = argparse.ArgumentParser(description='Generate handwriting from a traine
 parser.add_argument('--model', type=str,
                     help='Path to model').completer = DirectoriesCompleter()
 
+parser.add_argument("--nobrowser", action='store_true', help="If selected than brownser is not gonna open on itself")
+
 parser.add_argument('text', type=str,
                     help='text to generate')
 
@@ -229,7 +231,14 @@ def save_strokes_to_svg(strokes, filename, scale=1.0, stroke_width=2):
         drawing.add(drawing.path(d=current_path, fill="none", stroke="black", stroke_width=stroke_width))
     drawing.save()
     print(f"SVG saved to {filename}")
-    webbrowser.open(filename)
+    
+    showBrowser = True
+    
+    if(args.nobrowser is not None):
+        if(args.nobrowser):
+            showBrowser = False
+    if(showBrowser):
+        webbrowser.open(filename)
 
 def getDirs(__file__):
     cwdir = os.path.abspath(os.getcwd())
@@ -265,7 +274,7 @@ if model.char_to_idx is None:
         # Example vocabulary: letters and space.
         vocab = model_def.vocab
         model.char_to_idx = {c: i for i, c in enumerate(vocab)}
-strokes, attentions = generate_handwriting_with_attention(model, text_to_generate, seq_len=10_000, temperature=0.5)
+strokes, attentions = generate_handwriting_with_attention(model, text_to_generate, seq_len=10_000, temperature=0.3)
 svgpath = os.path.abspath(filedir + "../output/handwriting.svg")
 save_strokes_to_svg(strokes, svgpath)
 # sendImg()

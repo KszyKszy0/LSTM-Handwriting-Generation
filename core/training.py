@@ -1,5 +1,6 @@
 import math
 import requests
+from sendimg import run_generate_and_upload
 import model as model_def
 import torch
 import data_prep as data
@@ -583,8 +584,15 @@ for epoch in range(starter_epoch + 1, epochs):
         except:
             print("Nie ma połączenia z dashboardem")
       
-    # if(epoch % 50 == 0):
-    #     delete_files_main()
+    if(epoch % 15 == 0):
+        # gen habdwriting and send to server
+        print("Wysyłam zdjęcie do dashboardu")
+        try:
+            name = os.getenv("NAME")
+            run_generate_and_upload(name, epoch)
+        except:
+            print("Błąd w wysyłaniu zdjęcia lub generacji")
+    
     
     # Save best model separately
     if avg_val_loss < best_val_loss:

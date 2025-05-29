@@ -1,3 +1,4 @@
+import math
 import requests
 import model as model_def
 import torch
@@ -34,21 +35,21 @@ def getDirs(__file__):
 
 parser = argparse.ArgumentParser(description='Training script for handwriting generation model.')
 
-parser.add_argument('lr', type=float,
+parser.add_argument('--lr', type=float,
                     help='Learning rate parameter')
 
-parser.add_argument('optim', type=str,
+parser.add_argument('--optim', type=str,
                     help='adam or rms', choices=['adam', 'rms'])
 
-parser.add_argument('savefile', type=str,
-                    help='checkpoint save file').completer = DirectoriesCompleter()
+parser.add_argument('--savefile', type=str,
+                    help='folder name for checkpoint save file').completer = DirectoriesCompleter()
 
 parser.add_argument('--opt_checkpoint', type=str,
-                    help='checkpoint to load').completer = DirectoriesCompleter()
-
-parser.add_argument("--resume", action="store_true",)
+                    help='checkpoint file to load').completer = DirectoriesCompleter()
 
 parser.add_argument("--batch_size", type=int)
+
+parser.add_argument("--resume", action="store_true",)
 
 argcomplete.autocomplete(parser)
 args = parser.parse_args()
@@ -64,8 +65,15 @@ cwdir, filedir = getDirs(__file__)
 
 load_dotenv()
 
-MODEL_PATH = os.path.abspath(cwdir + args.savefile)
-LEARNING_RATE = args.lr
+savefile = os.getenv("SAVEFILE")
+if args.savefile is not None:
+    savefile = args.savefile
+MODEL_PATH = os.path.abspath(cwdir + savefile)
+
+LEARNING_RATE = float(os.getenv("LR"))
+if args.lr is not None:
+    LEARNING_RATE = args.lr
+    
 BATCH_SIZE = int(os.getenv("BATCH_SIZE"))
 
 input_dim = 3          # (x, y, pen state)
@@ -88,14 +96,21 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 model.to(device)
 
-if args.optim == 'adam':
+optimal = os.getenv("OPTIM")
+if args.optim is not None:
+    optimal = args.optim
+    
+
+    
+
+if optimal == 'adam':
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
     print('Using adam optimizer with ',LEARNING_RATE)
     f = open(logsFile, "a")
     f.write(f"Using adam optimizer with {LEARNING_RATE}\n")
     f.close()
 
-if args.optim == 'rms':
+if optimal == 'rms':
     optimizer = optim.RMSprop(model.parameters(), lr=LEARNING_RATE, centered=True)
     print('Using rmsprop optimizer with ',LEARNING_RATE)
     f = open(logsFile, "a")
@@ -154,8 +169,8 @@ if args.batch_size is not None:
     f.close()
 
 # Obsługa wielu folderów
-# folder_paths = ["../data/output", "../data/mwoutput", "../data/poloutput", "../data/hibru"]  # Lista ścieżek do folderów
-folder_paths = ["../data/output", "../data/mwoutput", "../data/poloutput"]  # Lista ścieżek do folderów
+folder_paths = ["../data/output", "../data/mwoutput", "../data/poloutput", "../data/hibru"]  # Lista ścieżek do folderów
+# folder_paths = ["../data/output", "../data/mwoutput", "../data/poloutput"]  # Lista ścieżek do folderów
 
 # Funkcja do wczytywania danych z wielu folderów
 def load_from_folders(folder_paths):
@@ -427,7 +442,7 @@ for epoch in range(starter_epoch + 1, epochs):
 
             # # Define thresholds
             alpha_min, alpha_max = 9, 11
-            beta_min, beta_max = 3, 10 
+            beta_min, beta_max = 2, 10 
             kappa_min, kappa_max = 0.03, 0.05 
 
             # # Compute penalties
@@ -534,24 +549,39 @@ for epoch in range(starter_epoch + 1, epochs):
         
     #save to website
     if(epoch % 1 == 0):
-        train_loss = round(avg_train_loss, 4)
-        val_loss = round(avg_val_loss, 4)
-        temp_time = round(elapsed_time, 2)
-        
-        payload = {
-            "model_name": os.getenv("NAME"),
-            "epoch": epoch,
-            "train_loss": train_loss,
-            "val_loss": val_loss,
-            "time": temp_time,
-            "batch_size": BATCH_SIZE
-        }
+        try:
+            # check if loss in NaN
+            if math.isnan(avg_train_loss) or math.isnan(avg_val_loss):
+                print("NaN loss detected, skipping website update.")
+                json = {
+                    "model_name": os.getenv("NAME"),
+                    "error": "NaN"
+                }
+                res = requests.post(website_url+"/error", json=json)
+                if res.status_code != 200:
+                    print(f"Błąd: {response.status_code}")
+                print(response.text)
+                continue
+            
+            train_loss = round(avg_train_loss, 4)
+            val_loss = round(avg_val_loss, 4)
+            temp_time = round(elapsed_time, 2)
+            
+            payload = {
+                "model_name": os.getenv("NAME"),
+                "epoch": epoch,
+                "train_loss": train_loss,
+                "val_loss": val_loss,
+                "time": temp_time,
+                "batch_size": BATCH_SIZE
+            }
+            response = requests.post(website_url+"/update", json=payload)
 
-        response = requests.post(website_url+"/update", json=payload)
-
-        if response.status_code != 200:
-            print(f"Błąd: {response.status_code}")
-            print(response.text)
+            if response.status_code != 200:
+                print(f"Błąd: {response.status_code}")
+                print(response.text)
+        except:
+            print("Nie ma połączenia z dashboardem")
       
     # if(epoch % 50 == 0):
     #     delete_files_main()

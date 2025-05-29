@@ -16,7 +16,7 @@ import requests
 
 parser = argparse.ArgumentParser(description='Generate handwriting from a trained model.')
 
-parser.add_argument('model', type=str,
+parser.add_argument('--model', type=str,
                     help='Path to model').completer = DirectoriesCompleter()
 
 parser.add_argument('text', type=str,
@@ -34,6 +34,11 @@ num_mixtures = int(os.getenv("num_mixtures"))           # number of Gaussian mix
 window_mixtures = int(os.getenv("window_mixtures"))     # number of mixtures for the window (attention) mechanism
 epochs = 10000
 char_vocab_size = len(model_def.vocab)
+
+MODEL = os.getenv("SAVEFILE") + "/best_model.pth"
+if args.model is not None:
+    MODEL = args.model
+
 
 # =========================
 # 2. Define a function to sample from the MDN output.
@@ -126,6 +131,7 @@ def generate_handwriting_with_attention(model, text, seq_len=300, temperature=1.
         # prev_kappa = positions.to(device)
 
         prev_kappa = torch.zeros(batch_size, model.window_mixtures, device=device)
+        prev_kappa[:,:] = -0.22
 
         window_vec = text_encoded[:, 0, :]
         current_input = torch.zeros(batch_size, model.input_dim, device=device)
@@ -174,7 +180,7 @@ def plot_attention(attentions, text):
     filename = os.path.abspath(filedir + "../output/plot.png")
     plt.savefig(filename)
     print(f"Plot saved to {filename}")
-    plt.show()
+    # plt.show()
     
 
 # =========================
@@ -246,7 +252,7 @@ def sendImg():
 # Example usage:
 # Uncomment and modify the following lines to load your model and generate handwriting.
 cwdir, filedir = getDirs(__file__)
-model_path = os.path.abspath(cwdir + args.model)       # path to your saved model file
+model_path = os.path.abspath(cwdir + MODEL)       # path to your saved model file
 text_to_generate = args.text
 # load_model_and_generate(model_path, text_to_generate, seq_len=80, output_svg="handwriting.svg", temperature=0.95)
 
@@ -259,7 +265,7 @@ if model.char_to_idx is None:
         # Example vocabulary: letters and space.
         vocab = model_def.vocab
         model.char_to_idx = {c: i for i, c in enumerate(vocab)}
-strokes, attentions = generate_handwriting_with_attention(model, text_to_generate, seq_len=10_000, temperature=0.1)
+strokes, attentions = generate_handwriting_with_attention(model, text_to_generate, seq_len=10_000, temperature=0.5)
 svgpath = os.path.abspath(filedir + "../output/handwriting.svg")
 save_strokes_to_svg(strokes, svgpath)
 # sendImg()

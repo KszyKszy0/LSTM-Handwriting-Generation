@@ -16,6 +16,7 @@ import argparse
 import argcomplete
 from argcomplete.completers import DirectoriesCompleter, ChoicesCompleter
 from dotenv import load_dotenv
+from torch.utils.tensorboard import SummaryWriter
 
 
 # Dodaj katalog główny projektu do PYTHONPATH
@@ -55,6 +56,10 @@ parser.add_argument("--resume", action="store_true",)
 argcomplete.autocomplete(parser)
 args = parser.parse_args()
 
+# Random seed for reproducibility
+RANDOM_SEED = 42
+torch.manual_seed(RANDOM_SEED)
+
 
 # =========================
 # 3. Example Usage
@@ -70,6 +75,10 @@ savefile = os.getenv("SAVEFILE")
 if args.savefile is not None:
     savefile = args.savefile
 MODEL_PATH = os.path.abspath(cwdir + savefile)
+
+# === TensorBoard ===
+LOG_DIR = "runs/" + savefile
+writer = SummaryWriter(LOG_DIR)
 
 LEARNING_RATE = float(os.getenv("LR"))
 if args.lr is not None:
@@ -170,8 +179,7 @@ if args.batch_size is not None:
     f.close()
 
 # Obsługa wielu folderów
-folder_paths = ["../data/output", "../data/mwoutput", "../data/poloutput", "../data/hibru"]  # Lista ścieżek do folderów
-# folder_paths = ["../data/output", "../data/mwoutput", "../data/poloutput"]  # Lista ścieżek do folderów
+folder_paths = ["../data/output", "../data/mwoutput", "../data/poloutput", "../data/hibru", "../data/augmented"]  # Lista ścieżek do folderów
 
 # Funkcja do wczytywania danych z wielu folderów
 def load_from_folders(folder_paths):
@@ -436,7 +444,7 @@ for epoch in range(starter_epoch + 1, epochs):
         # Extract parameters after exponential
         
         # [Batch_size, seq_len, window_mixtures, (a,b,k)] 
-        if(epoch < 50): 
+        if(epoch < 2): 
             log_kappa = window_params[:, :, :, 0]
             log_alpha = window_params[:, :, :, 1]
             log_beta = window_params[:, :, :, 2]
@@ -531,6 +539,12 @@ for epoch in range(starter_epoch + 1, epochs):
     print(f"Time: {elapsed_time:.2f} seconds")
     f.write(f"Epoch [{epoch}/{epochs}], Validation Loss: {avg_val_loss:.4f}\n")
     f.close()
+
+    # Log error
+    writer.add_scalars("Loss", {
+        'Train': avg_train_loss,
+        'Val': avg_val_loss
+    }, epoch)
     
     # Step the scheduler based on validation loss
     # scheduler.step(avg_val_loss)

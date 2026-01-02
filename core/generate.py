@@ -12,6 +12,10 @@ import webbrowser
 from dotenv import load_dotenv
 import data_prep as data
 import requests
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from gcode.openInkscape import open_in_inkscape_and_slice
+
 
 
 parser = argparse.ArgumentParser(description='Generate handwriting from a trained model.')
@@ -20,6 +24,8 @@ parser.add_argument('--model', type=str,
                     help='Path to model').completer = DirectoriesCompleter()
 
 parser.add_argument("--nobrowser", action='store_true', help="If selected than brownser is not gonna open on itself")
+
+parser.add_argument("--gcode", action='store_true', help="If selected gcode will be generated")
 
 parser.add_argument('text', type=str,
                     help='text to generate')
@@ -235,7 +241,7 @@ def save_strokes_to_svg(strokes, filename, scale=1.0, stroke_width=2):
     showBrowser = True
     
     if(args.nobrowser is not None):
-        if(args.nobrowser):
+        if(args.nobrowser or args.gcode):
             showBrowser = False
     if(showBrowser):
         webbrowser.open(filename)
@@ -279,3 +285,5 @@ svgpath = os.path.abspath(filedir + "../output/handwriting.svg")
 save_strokes_to_svg(strokes, svgpath)
 # sendImg()
 plot_attention(attentions, text_to_generate)
+if(args.gcode == True):
+    open_in_inkscape_and_slice()

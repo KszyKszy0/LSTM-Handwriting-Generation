@@ -13,3 +13,4 @@ todo.md
 .env
 .venv
 runs
+*.gcode

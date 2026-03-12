@@ -116,17 +116,17 @@ class HandwritingDataset(Dataset):
         self.max_timesteps = 1550
         self.realData = []
 
-        all_texts = []
+        all_texts = text_files
 
 
-        for text_file in text_files:
-            try:
-                with open(text_file, 'r', encoding='utf-8') as f:
-                    lines = f.readlines()
-                    texts = [line.strip() for line in lines]
-                    all_texts.extend(texts)
-            except Exception as e:
-                print(f"Błąd wczytywania pliku {text_file}: {e}")
+        # for text_file in text_files:
+        #     try:
+        #         with open(text_file, 'r', encoding='utf-8') as f:
+        #             lines = f.readlines()
+        #             texts = [line.strip() for line in lines]
+        #             all_texts.extend(texts)
+        #     except Exception as e:
+        #         print(f"Błąd wczytywania pliku {text_file}: {e}")
         
         # Sprawdzenie, czy liczba tekstów zgadza się z liczbą plików SVG
         if len(all_texts) != len(svg_files):

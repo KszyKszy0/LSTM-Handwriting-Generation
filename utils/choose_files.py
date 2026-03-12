@@ -213,10 +213,12 @@ if __name__ == "__main__":
     svg_files, text_files = load_from_folders(folder_paths)
     
     # Select balanced subset
-    selected_files = select_balanced_files(svg_files, folder_paths, target_count=300)
+    selected_files = select_balanced_files(svg_files, folder_paths, target_count=700)
     
-    print(f"\n{'='*60}")
-    print("SELECTED FILES:")
-    print(f"{'='*60}")
-    # for i, file_path in enumerate(selected_files, 1):
-    #     print(f"{i:4d}. {file_path}")
+    with open("core/filter.txt", 'a') as file:
+        print(f"\n{'='*60}")
+        print("SELECTED FILES:")
+        print(f"{'='*60}")
+        for i, file_path in enumerate(selected_files, 1):
+            # print(f"{i:4d}. {file_path}")
+            file.write(file_path + "\n")

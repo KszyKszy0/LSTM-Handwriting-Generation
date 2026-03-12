@@ -146,6 +146,8 @@ def load_dicts(path):
     f.close()
     
 if args.resume is not None:
+    if not os.path.exists(MODEL_PATH):
+        os.makedirs(MODEL_PATH)
     files = os.listdir(MODEL_PATH)
     
     regex = r"epoch(\d+)_.*"
@@ -179,32 +181,71 @@ if args.batch_size is not None:
     f.close()
 
 # Obsługa wielu folderów
-folder_paths = ["../data/output", "../data/mwoutput", "../data/poloutput", "../data/hibru", "../data/augmented"]  # Lista ścieżek do folderów
+# folder_paths = ["../data/output", "../data/mwoutput", "../data/poloutput", "../data/hibru", "../data/augmented"]  # Lista ścieżek do folderów
+folder_paths = ["../data/mwoutput", "../data/poloutput", "../data/hibru"]
+import os
 
-# Funkcja do wczytywania danych z wielu folderów
-def load_from_folders(folder_paths):
+def load_from_folders(folder_paths, filter_enabled=False):
     all_svg_files = []
-    all_text_files = []
-    
+    all_text_lines = []
+
+    allowed_filenames = set()
+
+    if filter_enabled:
+        with open("core/filter.txt") as f:
+            allowed_filenames = {line.strip() for line in f if line.strip()}
+
     for folder_path in folder_paths:
-        # Ścieżka do pliku z tekstami dla bieżącego folderu
         folder_path = os.path.abspath(filedir + folder_path)
-        files_content = f"{folder_path}/files.txt"
-        
-        # Lista nazw plików z rozszerzeniem .svg z bieżącego folderu
-        print("Loading folder: ",files_content)
-        svg_files = [f"{folder_path}/{file}" for file in os.listdir(folder_path) if file.endswith('.svg')]
-        
-        # Sortowanie plików SVG numerycznie
-        svg_files.sort(key=lambda x: int(os.path.splitext(os.path.basename(x))[0]))
-        
+        files_content_path = os.path.join(folder_path, "files.txt")
+
+        print("Loading folder:", files_content_path)
+
+        # --- Load and sort SVG files ---
+        svg_files = [
+            os.path.join(folder_path, file)
+            for file in os.listdir(folder_path)
+            if file.endswith(".svg")
+        ]
+
+        svg_files.sort(
+            key=lambda x: int(os.path.splitext(os.path.basename(x))[0])
+        )
+
+        # --- Load corresponding text lines ---
+        with open(files_content_path, "r") as f:
+            text_lines = f.readlines()
+
+        # Safety check
+        if len(svg_files) != len(text_lines):
+            raise ValueError(
+                f"Mismatch in {folder_path}: "
+                f"{len(svg_files)} SVGs vs {len(text_lines)} text lines"
+            )
+
+        # --- FILTER AFTER SORTING (paired) ---
+        if filter_enabled:
+            filtered_svg = []
+            filtered_text = []
+
+            for svg_path, text_line in zip(svg_files, text_lines):
+                filename = svg_path
+
+                if filename in allowed_filenames or "mwoutput" in filename:
+                    filtered_svg.append(svg_path)
+                    filtered_text.append(text_line)
+
+            svg_files = filtered_svg
+            text_lines = filtered_text
+
+        # Extend global lists
         all_svg_files.extend(svg_files)
-        all_text_files.append(files_content)
-    
-    return all_svg_files, all_text_files
+        all_text_lines.extend(text_lines)
+
+    return all_svg_files, all_text_lines
 
 # Wczytanie danych z wielu folderów
-svg_files, text_files = load_from_folders(folder_paths)
+svg_files, text_files = load_from_folders(folder_paths, False)
 
 dataset = data.HandwritingDataset(svg_files, text_files)
 

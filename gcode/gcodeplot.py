@@ -30,8 +30,8 @@ SVG_PATH = Path(__file__).resolve().parents[1] / "output" / "handwriting.svg"
 GCODE_PATH = Path(__file__).resolve().parents[1] / "output" / "handwriting.gcode"
 
 
-X_OFFSET = 30 # mm od lewego dolnego 
-Y_OFFSET = 30 # -- ^^^ --
+X_OFFSET = 45 # mm od lewego dolnego 
+Y_OFFSET = 40 # -- ^^^ --
 
 class Plotter(object):
     def __init__(self, xyMin=(X_OFFSET,Y_OFFSET), xyMax=(148+X_OFFSET,105+Y_OFFSET), #max 205/205
@@ -44,13 +44,12 @@ class Plotter(object):
                        "G21; millimeters|"
                        "G91 G0 F%.1f{{zspeed*60}} Z%.3f{{safe}}; pen park !!Zsafe|"
                        "G90; absolute|"
-                       "G28 X; home|"
-                       "G28 Y; home|"
-                       "G28 Z; home|"
+                       
                        "G00 F2400 X13.0 Y15.0; marker position fix|"
                        "G92 X0 Y0",
             endCode = "G91 G0 F2400 Z20; pen park !!Zsafe|"
-                      "G00 F2100.0 X60.0 Y180.0; releasing head"):
+                      "G90 ; change mode|"
+                      "G00 F2100.0 X20.0 Y200.0; releasing head"):
         self.xyMin = xyMin
         self.xyMax = xyMax
         self.drawSpeed = drawSpeed

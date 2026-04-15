@@ -49,9 +49,8 @@ class Plotter(object):
                        "G28 Z; home|"
                        "G00 F2400 X13.0 Y15.0; marker position fix|"
                        "G92 X0 Y0",
-            endCode = "G91 G0 F2400 Z20; pen park !!Zsafe|"
-                      "G90 ; change mode|"
-                      "G00 F2100.0 X20.0 Y200.0; releasing head"):
+            endCode = "G00 F2400.0 Z10.000; !!Zbot|"
+                      "G00 F2400 Y150.0; !!Zwdm"):
         self.xyMin = xyMin
         self.xyMax = xyMax
         self.drawSpeed = drawSpeed

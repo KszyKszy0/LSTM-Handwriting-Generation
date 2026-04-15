@@ -16,6 +16,7 @@ if not INKSCAPE_BINARY:
     raise EnvironmentError("Brak zmiennej INKSCAPE_BINARY w pliku .env. Ustaw ścieżkę do programu Inkscape.")
 
 SVG_PATH = Path(__file__).resolve().parents[1] / "output" / "handwriting.svg"
+GCODE_PATH = Path(__file__).resolve().parents[1] / "output" / "handwriting.gcode"
 
 
 def force_a6_landscape(svg_path: Path):
@@ -69,5 +70,6 @@ def open_in_inkscape_and_slice():
 
 def slice():
     mainConvert()
+    print("Gcode: ",GCODE_PATH)
     print("Done")
     

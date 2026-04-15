@@ -15,5 +15,6 @@ dependencies = [
     "requests>=2.32.3",
     "svgwrite>=1.4.3",
     "textstat>=0.7.5",
+    "torch>=2.11.0",
     "unidecode>=1.4.0",
 ]

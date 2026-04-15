@@ -272,7 +272,7 @@ text_to_generate = args.text
 # load_model_and_generate(model_path, text_to_generate, seq_len=80, output_svg="handwriting.svg", temperature=0.95)
 
 model = model_def.HandwritingRNN(input_dim, hidden_dim, num_mixtures, char_vocab_size, window_mixtures)
-checkpoint = torch.load(model_path, weights_only=True)
+checkpoint = torch.load(model_path, weights_only=True,map_location=torch.device('cpu'))
 model.load_state_dict(checkpoint['model_state_dict'])
 print(checkpoint['epoch'])
 model.eval()

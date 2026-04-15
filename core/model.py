@@ -307,6 +307,13 @@ def mdn_loss(mdn_params_seq, target_seq, num_mixtures):
     rho = torch.tanh(rho)
     pen_prob = torch.sigmoid(pen_logits)
 
+    eps = 1e-6
+
+    sigma1 = torch.clamp(sigma1, min=eps, max=1e3)
+    sigma2 = torch.clamp(sigma2, min=eps, max=1e3)
+    rho = torch.clamp(rho, min=-1 + eps, max=1 - eps)
+    pi = torch.clamp(pi, min=eps, max=1.0)
+
     # -------------------------
     # Extract target values.
     # target_seq is assumed to have 3 channels: x, y, and pen state.
@@ -330,25 +337,25 @@ def mdn_loss(mdn_params_seq, target_seq, num_mixtures):
     # Note: The bivariate normal density is defined as:
     #   N(x,y) = 1/(2πσ1σ2√(1-ρ²)) * exp{ -1/(2(1-ρ²)) * [norm_x² + norm_y² - 2ρ norm_x norm_y] }
     z = norm_x**2 + norm_y**2 - 2 * rho * norm_x * norm_y
-    denom = 2 * (1 - rho**2) + 1e-8  # epsilon for stability
+    one_minus_rho2 = torch.clamp(1 - rho**2, min=eps)
+    denom = 2 * one_minus_rho2
     exponent = -z / denom
 
     # Normalizing constant for each component.
-    normalizer = 2 * math.pi * sigma1 * sigma2 * torch.sqrt(1 - rho**2 + 1e-8)
+    normalizer = 2 * math.pi * sigma1 * sigma2 * torch.sqrt(one_minus_rho2)
     
     # Probability for each component.
-    component_prob = torch.exp(exponent) / (normalizer + 1e-8)  # (B, T, M)
+    log_component_prob = exponent - torch.log(normalizer + eps)
+    component_prob = torch.exp(log_component_prob)
 
     # -------------------------
     # Weight by the mixture coefficients and sum across mixtures.
     # This gives the total probability density for the target (x, y) at each time step.
     # -------------------------
     weighted_prob = pi * component_prob  # (B, T, M)
-    prob = torch.sum(weighted_prob, dim=-1) + 1e-8  # (B, T); add epsilon to avoid log(0)
-    # prob = torch.clamp(prob, min=1e-7, max=1-1e-7)
-
-    # Negative log-likelihood for the coordinates.
-    loss_mdn = -torch.log(prob)  # (B, T)
+    log_weighted = torch.log(pi + eps) + log_component_prob
+    log_prob = torch.logsumexp(log_weighted, dim=-1)
+    loss_mdn = -log_prob
     # -------------------------
     # Pen state loss:
     # Use binary cross-entropy between the predicted pen probability and target.
@@ -360,6 +367,12 @@ def mdn_loss(mdn_params_seq, target_seq, num_mixtures):
     loss = loss_mdn + loss_pen
 
     # Average loss over all time steps and the batch.
+    if not torch.isfinite(mdn_params_seq).all():
+      print("NaN in mdn_params")
+
+    if not torch.isfinite(sigma1).all():
+      print("NaN in sigma1")
+
     return loss
 
 

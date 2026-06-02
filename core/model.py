@@ -2,13 +2,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-# from data.utils.charStats import getList TODO
 
 # =========================
 # 1. Define Character Dictionary
 # =========================
 # Here we define a simple vocabulary. You can expand it as needed.
-# vocab = list(getList())  # letters and space
 vocab = list("aąbcćdeęfghijklłmnńoópqrsśtuvwxyzźżABCĆDEFGHIJKLŁMNOÓPQRSŚTUVWXYZŹŻ 0123456789'-!\"#$%&()*,./:;?@[]+<=>")  # letters and space
 char_to_idx = {c: i for i, c in enumerate(vocab)}
 idx_to_char = {i: c for i, c in enumerate(vocab)}
@@ -249,16 +247,8 @@ class HandwritingRNN(nn.Module):
         return text_tensor, text_lengths
     
 
-
-
 '''LOSS FUNCTION'''
 
-
-
-
-# Assume that `model`, `dataloader`, and `num_mixtures` are defined as in the previous code snippet.
-# For example, model is an instance of HandwritingRNN with MDN output of shape (batch, seq_len, 6*num_mixtures+1)
-# and dataloader yields (input_seq, target_seq, text).
 
 def mdn_loss(mdn_params_seq, target_seq, num_mixtures):
     """

@@ -11,7 +11,7 @@ from torch.nn.utils.rnn import pad_sequence
 
 '''
 
-        Format danych
+        Data format
 
         [Used for preprocessing]
         self.data[a][0] - sequence
@@ -26,7 +26,7 @@ from torch.nn.utils.rnn import pad_sequence
 # Variable for holding max length of sequence for padding purpose
 maximal = 0
 
-# Funkcja do wczytania i sparsowania pliku SVG
+# Function for loading and parsing SVGs
 def parse_svg(file_path):
     """
     Parses an SVG file, extracting all polyline points as (x, y, pen_state).
@@ -70,6 +70,10 @@ def parse_svg(file_path):
 def adaptive_resample(stroke_data, min_distance=2.0):
     """
     Resample stroke data to reduce resolution while preserving character.
+    Small and frequent changes do not provide meaningful information for learning purpose.
+    Most of the times they only impact length of the sequence.
+    It is much easier to learn from short sequences. 
+    That's why we use this function to limit the number of points taken into consideration while learning.
     
     Args:
         stroke_data: Original high-resolution stroke data (x, y, pen_state)
@@ -99,43 +103,32 @@ def adaptive_resample(stroke_data, min_distance=2.0):
 
 
 '''
-    Format danych:
-    1 - wymiar : plik czyli np. [0] - oznacza pierwszy plik
-    2- wymiar punkt czyli np. [2][4] - oznacza 3 plik 5 punkt
+    Data format:
+    1 - dimension is a file i.e. [0] - first file
+    2 - dimension is a point which means np. [2][4] - 3rd file, 5 point of that file
 '''
 class HandwritingDataset(Dataset):
     def __init__(self, svg_files, text_files):
         """
-        Dataset dla uczenia modelu na danych ręcznego pisma w formacie SVG.
+        Dataset for model learning handwriting on SVGs
         Args:
-            svg_files (list): Lista ścieżek do plików SVG.
-            text_file (str): Ścieżka do pliku tekstowego zawierającego teksty (jedna linia na plik SVG).
+            svg_files (list): List of filepaths to all SVG files.
+            text_file (str): Filepath to txt file where every line corresponds to every svg file in order 
         """
         self.data = []  # Lista sekwencji (każda sekwencja to lista punktów)
-        # self.texts = []  # Lista tekstów odpowiadających danym
         self.max_timesteps = 1550
         self.realData = []
 
         all_texts = text_files
-
-
-        # for text_file in text_files:
-        #     try:
-        #         with open(text_file, 'r', encoding='utf-8') as f:
-        #             lines = f.readlines()
-        #             texts = [line.strip() for line in lines]
-        #             all_texts.extend(texts)
-        #     except Exception as e:
-        #         print(f"Błąd wczytywania pliku {text_file}: {e}")
         
-        # Sprawdzenie, czy liczba tekstów zgadza się z liczbą plików SVG
+        # Checking if amount of lines in the text file, and amount of SVG files is the same.
         if len(all_texts) != len(svg_files):
             raise ValueError("Liczba tekstów w plikach nie zgadza się z liczbą plików SVG.")
         
-        # Wczytanie danych z plików SVG
+        # Parsing SVG files
         data_counter = 0
         for file, text in zip(svg_files, all_texts):
-            # Parsowanie pliku SVG na punkty
+            # Extracting points
             polylines = parse_svg(file)
 
             if(len(polylines) > 1500):
@@ -148,13 +141,10 @@ class HandwritingDataset(Dataset):
                 print(len(polylines))
                 continue
             
-            # Dodanie całej sekwencji z pliku oraz odpowiadającego tekstu
+            # Appending whole sequence and corresponding text
             self.data.append((polylines, text))
 
             data_counter += 1
-
-            # if data_counter % 500 == 0:
-            #     break
         
         for i in range(len(self.data)):
             polyline = self.data[i][0]
@@ -163,7 +153,6 @@ class HandwritingDataset(Dataset):
             target_seq = torch.tensor(padded_polyline[1:], dtype=torch.float32)            
 
             self.realData.append((input_seq,target_seq,self.data[i][1]))
-            # print(self.realData[-1])
 
             if i % 100 == 0:
                 print(str(i) + "/" + str(len(self.data)) + " prepared")
@@ -172,65 +161,65 @@ class HandwritingDataset(Dataset):
 
     def normalize_data(self):
         """
-        Normalizacja współrzędnych x, y w danych SVG. Flaga (0-1) pozostaje bez zmian.
-        Tekst (druga kolumna krotek) nie jest modyfikowany.
+        Normalizing coordinates x and y in SVG format. Pen-up/Pen-down flag remains untouched.
+        Text is not modified either.
         """
-        # Ekstrakcja wszystkich punktów x, y do jednego arraya
+        # Extracting all x,y coordinates
         all_points = np.concatenate(
-            [np.array(seq[0])[:, :2] for seq in self.data], axis=0  # seq[0] to `polylines`
+            [np.array(seq[0])[:, :2] for seq in self.data], axis=0
         )
         self.mean = np.mean(all_points, axis=0)
         self.std = np.std(all_points, axis=0)
 
-        # Zapis średniej i odchylenia standardowego do pliku
+        # Take Mean And Std Dev to write them down to file
         with open('norm.txt', 'w') as file:
             np.savetxt(file, np.column_stack((self.mean, self.std)))
 
-        # Normalizacja x, y w `polylines`
+        # Normalize x, y in `polylines`
         for i in range(len(self.data)):
             polylines, text = self.data[i]
             normalized_polylines = [
                 [
-                    (point[0] - self.mean[0]) / self.std[0],  # Normalizacja x
-                    (point[1] - self.mean[1]) / self.std[1],  # Normalizacja y
-                    point[2],  # Flaga bez zmian
+                    (point[0] - self.mean[0]) / self.std[0],  # Normalizing x
+                    (point[1] - self.mean[1]) / self.std[1],  # Normalizing y
+                    point[2],  # Flag remains the same
                 ]
                 for point in polylines
             ]
-            # Aktualizacja znormalizowanych danych, pozostawiając tekst bez zmian
+            # Updating Normalized Data
             self.data[i] = (normalized_polylines, text)
 
     def __len__(self):
         """
-        Zwraca liczbę plików (sekwencji) w zbiorze danych.
+        Returns number of files in dataset.
         """
         print(len(self.realData))
         return len(self.realData)
 
     def pad_sequence(self, sequence, max_length):
         """
-        Uzupełnia sekwencję zerami do określonej maksymalnej długości.
+        Fill sequence with [0, 0, 0] for given size
         """
         sequence_length = len(sequence)
         if sequence_length < max_length:
-            padding = [[0, 0, 0]] * (max_length - sequence_length)  # Dodaj zerowe timestepy
+            padding = [[0, 0, 0]] * (max_length - sequence_length)  # Adding zero timesteps
             sequence.extend(padding)
-        return sequence[:max_length]  # Przytnij do max_length (dla bezpieczeństwa)
+        return sequence[:max_length]  # Trim to max_length (for safety)
 
     def pad_alphabet(self, sequence, max_length):
         sequence_length = len(sequence)
         element_size = len(sequence[0]) if sequence else 0
         if sequence_length < max_length:
-            padding = [[0] * element_size] * (max_length - sequence_length)  # Dodaj zerowe timestepy
+            padding = [[0] * element_size] * (max_length - sequence_length)  # Adding zero timesteps
             sequence.extend(padding)
-        return sequence[:max_length]  # Przytnij do max_length (dla bezpieczeństwa)
+        return sequence[:max_length]  # Trim to max_length (for safety)
 
     def pad_end_probability(self, sequence, max_length):
         sequence_length = len(sequence)
         if sequence_length < max_length:
-            padding = [0] * (max_length - sequence_length)  # Dodaj zerowe timestepy
+            padding = [0] * (max_length - sequence_length)  # Adding zero timesteps
             sequence.extend(padding)
-        return sequence[:max_length]  # Przytnij do max_length (dla bezpieczeństwa)
+        return sequence[:max_length]  # Trim to max_length (for safety)
 
     def __getitem__(self, idx):
         return self.realData[idx][0], self.realData[idx][1], self.realData[idx][2]
@@ -257,30 +246,29 @@ def align(coords):
     """
     Corrects for global slant/offset in handwriting strokes using NumPy.
     """
-    coords = np.copy(coords)  # Tworzy kopię danych wejściowych
+    coords = np.copy(coords)  # Copying base coords
 
-    # Oddzielne kolumny X i Y
+    # Splitting X and Y
     X = coords[:, 0].reshape(-1, 1)
     Y = coords[:, 1].reshape(-1, 1)
 
-    # Tworzenie macierzy X z kolumną jedynek
     ones = np.ones((X.shape[0], 1))
     X = np.hstack([ones, X])
 
-    # Obliczanie współczynników offset i slope
+    # Calculating offset and slope
     XtX = X.T @ X
     XtY = X.T @ Y
     coeffs = np.linalg.solve(XtX, XtY).squeeze()
     offset, slope = coeffs[0], coeffs[1]
 
-    # Obliczanie kąta i macierzy rotacji
+    # Calculating angle and rotation matrix
     theta = np.arctan(slope)
     rotation_matrix = np.array([
         [np.cos(theta), -np.sin(theta)],
         [np.sin(theta), np.cos(theta)]
     ])
 
-    # Rotacja współrzędnych i korekta offsetu
+    # Rotating the cords
     coords[:, :2] = coords[:, :2] @ rotation_matrix - offset
 
     return coords
@@ -289,27 +277,28 @@ def normalize(offsets):
     """
     Normalizes strokes to median unit norm using NumPy.
     """
-    offsets = np.copy(offsets)  # Tworzy kopię danych wejściowych
+    offsets = np.copy(offsets)  # Copying data
 
-    # Obliczanie mediany normy
+    # Calculating median norm
     norms = np.linalg.norm(offsets[:, :2], axis=1)
     median_norm = np.median(norms)
 
-    # Normalizacja offsetów
+    # Normalizing offsets
     offsets[:, :2] /= median_norm
 
     return offsets
 
 '''
-    Zmienia punkty w offsety i wtedy
-    Dodaje 0 0 1 na start
+    Convering points to offsets
+    And adding [0, 0, 1] as starting point
 
-    czyli tak jakby zaczynamy od 0,0 i wtedy od razu offsety pomiędzy
-    czyli nie ma różnicy gdzie się zacznie pisać
+    We consider whole sequence as if it would start from [0,0] and went on from there.
+    It does not matter where exactly you have started.
+    The first point will be [0,0] and the following ones will be shifted by the calculated offset.
 '''
 def coords_to_offsets(coords):
     """
-    convert from coordinates to offsets
+    Convert from coordinates to offsets.
     """
     offsets = np.concatenate([coords[1:, :2] - coords[:-1, :2], coords[1:, 2:3]], axis=1)
     offsets = np.concatenate([np.array([[0, 0, 1]]), offsets], axis=0)

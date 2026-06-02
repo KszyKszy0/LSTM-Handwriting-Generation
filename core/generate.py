@@ -48,9 +48,8 @@ if args.model is not None:
     MODEL = args.model
 
 
-# =========================
-# 2. Define a function to sample from the MDN output.
-# =========================
+
+# Define a function to sample from the MDN output.
 def sample_from_mdn(mdn_params, num_mixtures, temperature=1.0):
     """
     Sample a stroke (x, y, pen state) from the MDN parameters.
@@ -105,7 +104,7 @@ def generate_handwriting_with_attention(model, text, seq_len=300, temperature=1.
       strokes: List of (x, y, pen_state) tuples.
       attentions: List (over time steps) of attention weight arrays (shape: max_text_len,).
     """
-    device = 'cpu'
+    device = 'cuda'
     model.eval()
     model.to(device)
     # device = next(model.parameters()).device
@@ -125,20 +124,8 @@ def generate_handwriting_with_attention(model, text, seq_len=300, temperature=1.
         c3 = torch.zeros(batch_size, model.hidden_dim, device=device)
         hidden3 = (h3, c3)
 
-        # # Create a slightly more advanced initialization that's aware of text position
-        # first_pos = 0.5  # Position attention near the first character
-        # spread = 0.7     # How spread out the attention should be initially
-
-        # # Generate positions for each mixture component centered on the first character
-        # positions = torch.linspace(
-        #     first_pos - spread/2, 
-        #     first_pos + spread/2, 
-        #     model.window_mixtures
-        # ).unsqueeze(0).expand(batch_size, -1)
-
-        # prev_kappa = positions.to(device)
-
         prev_kappa = torch.zeros(batch_size, model.window_mixtures, device=device)
+        # This is a hardcoded workaround for model starting generation too fast omitting first letter
         prev_kappa[:,:] = -0.22
 
         window_vec = text_encoded[:, 0, :]
@@ -175,7 +162,7 @@ def plot_attention(attentions, text):
       attentions: List of attention arrays with shape (max_text_len,).
       text: The conditioned text string.
     """
-    attention_array = np.array(attentions)  # shape: (seq_len, max_text_len)
+    attention_array = np.array(attentions)
     plt.figure(figsize=(10, 6))
     # Transpose so x-axis is time and y-axis corresponds to text characters.
     plt.imshow(attention_array.T, aspect="auto", origin="upper", interpolation="none")
@@ -188,12 +175,11 @@ def plot_attention(attentions, text):
     filename = os.path.abspath(filedir + "../output/plot.png")
     plt.savefig(filename)
     print(f"Plot saved to {filename}")
-    # plt.show()
+    # Uncomment to show the plot after saving
+    # plt.show() 
     
 
-# =========================
-# 4. Function to Save Generated Strokes as an SVG File
-# =========================
+# Function to Save Generated Strokes as an SVG File
 def save_strokes_to_svg(strokes, filename, scale=1.0, stroke_width=2):
     """
     Save a list of strokes to an SVG file.
@@ -263,13 +249,10 @@ def sendImg():
         print("Status:", response.status_code)
         print("Odpowiedź:", response.text)
 
-# =========================
 # Example usage:
-# Uncomment and modify the following lines to load your model and generate handwriting.
 cwdir, filedir = getDirs(__file__)
-model_path = os.path.abspath(cwdir + MODEL)       # path to your saved model file
+model_path = os.path.abspath(cwdir + MODEL)
 text_to_generate = args.text
-# load_model_and_generate(model_path, text_to_generate, seq_len=80, output_svg="handwriting.svg", temperature=0.95)
 
 model = model_def.HandwritingRNN(input_dim, hidden_dim, num_mixtures, char_vocab_size, window_mixtures)
 checkpoint = torch.load(model_path, weights_only=True,map_location=torch.device('cpu'))
@@ -278,12 +261,14 @@ print(checkpoint['epoch'])
 model.eval()
 if model.char_to_idx is None:
         # Example vocabulary: letters and space.
+        # Whole vocabulary is defined in other file
+        # If you want to train model suiting your vocabulary or custom signs, you have to change the vocabulary in file with model definiton
         vocab = model_def.vocab
         model.char_to_idx = {c: i for i, c in enumerate(vocab)}
 strokes, attentions = generate_handwriting_with_attention(model, text_to_generate, seq_len=10_000, temperature=0.3)
 svgpath = os.path.abspath(filedir + "../output/handwriting.svg")
 save_strokes_to_svg(strokes, svgpath)
-# sendImg()
+
 plot_attention(attentions, text_to_generate)
 if(args.gcode == True):
     open_in_inkscape_and_slice()

@@ -18,7 +18,7 @@ There is **a lot** of other implementation available online, but many of them fe
   - Allowing for much longer sequences, by exapnding the size, and adding skip connections.
 ***
 
-### 3. Training process ###
+### 3. Training process
 - We managed to run the training loop on RX 6800 using ROCM on linux, it should work on most modern distros. In case of some problems, refer to AMD tutorials, they should help to pick right solution in your situation.
 - Every case should be considered individually, however if someone wants some rough estimations to know if their training is going smoothly, I can offer some tips to you:
 	 - **Monitor attention** - this is crucial during first epochs, beacuse offten attention collpase means that there is no way for the model to recover. Attention collpase meaning in this case, that the model tries to generate whole sequence on the span of 20 timesteps, that would suggest that attention module diverged, and the training should be stopped.
@@ -27,7 +27,14 @@ There is **a lot** of other implementation available online, but many of them fe
 	 - To get model to some decent performance, the training should take at least 24 hours. The exact number is hard to predict, but loss here can give you some direct hints when learning slows down. Ideal loss values are below -5, although down from -3 seems good too. Sometimes even as high as -2 is giving some sensible handwriting.
 ***
 
-### 4. What's Next?
+### 4. Examples
+Here you can see some examples of generated text in polish and english with their corresponding attention plots during generation.
+![Screenshot](imgs/handwriting.svg)
+![Screenshot](imgs/plot.png)
+![Screenshot](imgs/handwriting2.svg)
+![Screenshot](imgs/plot2.png)
+
+### 5. What's Next?
 * The next would be the repo with app for creating the handwriting. (We should share it in near future)
 * If you have any questions, feel free to ask them (If I somehow know the answer, I'll gladly share it with you).
 * This repo is still a mess, but I didn't have a lot of time to tidy it up properly.
